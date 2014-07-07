@@ -2,10 +2,19 @@
 <head>
 </head>
 <body>
-    <h1>Hello!</h1>
-    <video width="500" height="300" controls>
+    <h1>Time:</h1>
+    <p id="time">0.00</p>
+
+    <video id="video" width="500" height="300" preload="auto" controls>
         <source src="assets/colors.mp4" type="video/mp4">
         Your browser does not support the video tag.
     </video>
+
+    <script type="text/javascript">
+        var video = document.getElementById("video");
+        video.addEventListener("timeupdate", function () {
+            document.getElementById("time").innerText = video.currentTime.toFixed(2);
+        }, false);
+    </script>
 </body>
 </html>
