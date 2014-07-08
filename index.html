@@ -2,8 +2,8 @@
 <head>
 </head>
 <body>
-    <h1>Time:</h1>
-    <p id="time">0.00</p>
+    <p>Time: <span id="time">0.00</span></p>
+    <p>Delta: <span id="delta">0.00</span></p>
 
     <video id="video" width="500" height="300" preload="auto" controls>
         <source src="assets/colors.mp4" type="video/mp4">
@@ -11,10 +11,52 @@
     </video>
 
     <script type="text/javascript">
+
         var video = document.getElementById("video");
+        var event_delta = 0;
+        var event_count = 0;
+        var event_delta_last = 0;
+        var event_count_last = 0;
+        var event_time_last = 0;
+
+        video.addEventListener("playing", function () {
+            event_delta = event_delta_last;
+            event_count = event_count_last;
+            event_time_last = video.currentTime;
+        }, false);
+
+        video.addEventListener("timeupdate", function () {
+            var current = video.currentTime;
+
+            if (event_time_last < current) {
+                var delta;
+                var factor;
+
+                event_delta_last = event_delta;
+                event_count_last = event_count++;
+
+                delta = current - event_time_last;
+                factor = event_count_last / (event_count_last + 1);
+
+                event_delta = event_delta_last * factor + delta / (event_count_last + 1);
+            }
+
+            event_time_last = current;
+        }, false);
+
         video.addEventListener("timeupdate", function () {
             document.getElementById("time").innerText = video.currentTime.toFixed(2);
+            document.getElementById("delta").innerText = event_delta.toFixed(2);
         }, false);
+
+        var STOP_TIME = 5;
+
+        video.addEventListener("timeupdate", function () {
+            if (Math.abs(STOP_TIME - video.currentTime) * 2 < event_delta) {
+                video.pause();
+            }
+        }, false);
+
     </script>
 </body>
 </html>
