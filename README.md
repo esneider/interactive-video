@@ -1,2 +1,3 @@
-interactive-video
-=================
+# lecture.js
+
+Interactive video lectures in HTML5
