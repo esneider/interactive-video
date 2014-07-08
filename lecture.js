@@ -202,15 +202,15 @@ var Lecture = (function(document) {
         var overlay = document.createElement('div');
 
         overlay.setAttribute('id', id);
-        overlay.setAttribute('width', options.width);
-        overlay.setAttribute('height', options.height);
+        overlay.style.width = options.width;
+        overlay.style.height = options.height;
         overlay.style.display = 'none';
         overlay.style.position = 'fixed';
 
         var background = document.createElement('div');
 
-        background.setAttribute('width', options.width);
-        background.setAttribute('height', options.height);
+        background.style.width = options.width;
+        background.style.height = options.height;
         background.style.position = 'fixed';
         background.style.opacity = options.background.opacity;
         background.style.filter = 'alpha(opacity=' + options.background.opacity + ')';
@@ -219,8 +219,8 @@ var Lecture = (function(document) {
         var foreground = document.createElement('div');
 
         foreground.setAttribute('id', '_' + id);
-        foreground.setAttribute('width', options.width);
-        foreground.setAttribute('height', options.height);
+        foreground.style.width = options.width;
+        foreground.style.height = options.height;
         foreground.style.position = 'fixed';
 
         overlay.appendChild(background);
