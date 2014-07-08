@@ -218,6 +218,7 @@ var Lecture = (function(document) {
 
         var foreground = document.createElement('div');
 
+        foreground.setAttribute('id', '_' + id);
         foreground.setAttribute('width', options.width);
         foreground.setAttribute('height', options.height);
         foreground.style.position = 'fixed';
@@ -253,7 +254,7 @@ var Lecture = (function(document) {
         request.onreadystatechange = function() {
             if (request.readyState == 4) {
                 if (request.status == 200 || request.status == 304) {
-                    var foreground = overlay.getElementsByName('div')[1];
+                    var foreground = document.getElementById('_' + id);
                     foreground.innerHTML = request.responseText;
                 }
             }
