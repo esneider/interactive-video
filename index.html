@@ -1,5 +1,6 @@
 <html>
 <head>
+    <meta charset="UTF-8">
     <style>
         .container {
             position: fixed;
@@ -28,7 +29,9 @@
         <div id="overlay" class="container hidden">
             <div id="background" class="container opaque"></div>
             <div id="foreground" class="container">
-                <h1>Hello!</h1>
+                <h1>Elige! Estoy seguro de que perderás...</h1>
+                <input id="restart" type="button" value="Reiniciar" />
+                <input id="continue" type="button" value="Seguir" />
             </div>
         </div>
     </div>
@@ -78,8 +81,19 @@
             if (Math.abs(STOP_TIME - video.currentTime) * 2 < event_delta) {
                 var overlay = document.getElementById("overlay");
                 video.pause();
-                overlay.style.display="block";
+                overlay.style.display = "block";
             }
+        }, false);
+
+        document.getElementById("restart").addEventListener("click", function () {
+            overlay.style.display = "none";
+            video.currentTime = 0;
+            video.play();
+        }, false);
+
+        document.getElementById("continue").addEventListener("click", function () {
+            overlay.style.display = "none";
+            video.play();
         }, false);
 
     </script>
