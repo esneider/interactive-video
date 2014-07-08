@@ -38,7 +38,9 @@
 
     <script type="text/javascript">
 
-        var video = document.getElementById("video");
+        var video   = document.getElementById("video");
+        var overlay = document.getElementById("overlay");
+
         var event_delta = 0;
         var event_count = 0;
         var event_delta_last = 0;
@@ -79,9 +81,8 @@
 
         video.addEventListener("timeupdate", function () {
             if (Math.abs(STOP_TIME - video.currentTime) * 2 < event_delta) {
-                var overlay = document.getElementById("overlay");
-                video.pause();
                 overlay.style.display = "block";
+                video.pause();
             }
         }, false);
 
