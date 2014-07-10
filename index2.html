@@ -7,8 +7,9 @@
     <script type="text/javascript">
         var div = document.getElementById("lecture");
         var lecture = new Lecture(div);
-        lecture.addVideo("colors", "assets/colors.mp4");
-        lecture.addOverlay("test", "test.html");
+        var video = lecture.newVideo("colors", "assets/colors.mp4");
+        var overlay = lecture.newOverlay("test", "test.html");
+        video.addOverlay(7, overlay);
     </script>
 </body>
 </html>
