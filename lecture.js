@@ -3,7 +3,7 @@ var Lecture = (function(document) {
     'use strict';
 
     /**
-     * Default values for all Lecture options.
+     * Defaults for Lecture's options.
      */
     var defaultOptions = {
         width: '500px',
@@ -14,40 +14,20 @@ var Lecture = (function(document) {
             muted: false,
         },
         overlay: {
-            margin: '10px',
+            padding: '10px',
             background_color: 'white',
             background_opacity: 1,
         },
     };
 
     /**
-     * Video MIME types with possible file extensions.
+     * Video MIME types with file extensions.
      */
     var videoMIME = {
         'video/mp4': /^(mp4|m4a|m4p|m4b|m4r|m4v)$/i,
         'video/ogg': /^(ogg|ogv|oga|ogx|ogm|spx|opus)$/i,
         'video/webm': /^(webm)$/i,
     };
-
-    /**
-     * Create a new XMLHttpRequest.
-     */
-    function newRequest() {
-
-        try {
-            return new XMLHttpRequest();
-        } catch (error) {}
-
-        try {
-            return new ActiveXObject('Msxml2.XMLHTTP');
-        } catch (error) {}
-
-        try {
-            return new ActiveXObject('Microsoft.XMLHTTP');
-        } catch (error) {}
-
-        throw new Error('Could not create HTTP request object.');
-    }
 
     /**
      * Extend an object's properties with another's.
@@ -69,7 +49,8 @@ var Lecture = (function(document) {
     /**
      * Format seconds as hh:mm:ss.xxx (xxx indicates miliseconds).
      *
-     * @param {number} seconds - Number of seconds to format.
+     * @param {number} seconds - Number of seconds.
+     *
      * @return {string} Formatted string.
      */
     function secondsToString(seconds) {
@@ -89,7 +70,7 @@ var Lecture = (function(document) {
     }
 
     /**
-     * Create a new video.
+     * Create a Video component.
      *
      * @constructor
      * @param {string} id - Video id.
@@ -101,16 +82,15 @@ var Lecture = (function(document) {
         this.id = id;
         this.options = options;
         this.currentTime = options.startTime;
-
         this.element = this._HTMLVideo();
         this.element.video = this;
     }
 
     /**
-     * Create a new Video HTML element.
+     * Create a video HTML element.
      *
      * @private
-     * @return {object} New Video HTML element.
+     * @return {object} New video HTML element.
      */
     Video.prototype._HTMLVideo = function() {
 
@@ -123,23 +103,26 @@ var Lecture = (function(document) {
         video.style.display = 'none';
         video.style.position = 'absolute';
 
-        if (this.options.controls)
+        if (this.options.controls) {
             video.setAttribute('controls', 'controls');
+        }
 
-        if (this.options.muted)
+        if (this.options.muted) {
             video.setAttribute('muted', 'muted');
+        }
 
         var transitions = document.createElement('track');
 
         transitions.setAttribute('default', 'default');
         transitions.setAttribute('kind', 'metadata');
 
-        if (this.options.transitions)
+        if (this.options.transitions) {
             transitions.setAttribute('src', this.options.transitions);
+        }
 
         video.appendChild(transitions);
         video.appendChild(document.createTextNode(
-            'Your browser does not suport HTML5 video. Please update it.'
+            'Sorry, your browser doesn\'t suport HTML5 video.'
         ));
 
         this.transitions = transitions;
@@ -148,7 +131,7 @@ var Lecture = (function(document) {
     };
 
     /**
-     * Add a source for a given video format/encoding.
+     * Add a video source for a given video format/encoding.
      *
      * @param {string} source - Video source URI.
      * @param {string} [type] - Video MIME type.
@@ -176,7 +159,7 @@ var Lecture = (function(document) {
     };
 
     /**
-     * Add a subtitle track to the Video.
+     * Add a subtitle track to the video.
      *
      * @param {string} language - Language of the subtitles (en, es, ...).
      * @param {string} source - Subtitles file URI.
@@ -199,10 +182,9 @@ var Lecture = (function(document) {
 
     /**
      * Add a transition to another Video.
-     * TODO
      *
      * @param {number} time - Trigger the transition at this given time (in seconds).
-     * @param {string} videoId -
+     * @param {string} videoId - TODO
      * @param {number} [startingTime] -
      * @param {boolean} [startPlaying=true] -
      */
@@ -219,6 +201,13 @@ var Lecture = (function(document) {
         }
 
         this.transitions.addCue(new TextTrackCue(time, time, text));
+    };
+
+    /**
+     * TODO
+     */
+    Video.prototype.addOverlayTransition = function() {
+
     };
 
     /**
@@ -240,70 +229,58 @@ var Lecture = (function(document) {
     };
 
     /**
-     * Create a new overlay.
+     * Create an Overlay component.
      *
      * @constructor
-     * @param {string} id - Overlay element id.
-     * @param {string} uri - Overlay URI.
+     * @param {string} id - Overlay id.
+     * @param {string} source - Overlay source URI.
      * @param {object} options - Overlay configuration options.
+     * @see Lecture#newOverlay
      */
-    function Overlay(id, uri, options) {
+    function Overlay(id, source, options) {
 
         this.id = id;
-        this.uri = uri;
+        this.source = source;
         this.options = options;
-        this.element = this._newHTML();
+        this.element = this._HTMLOverlay();
+        this.element.overlay = this;
     }
 
     /**
-     * Create a new overlay HTML element.
+     * Create an overlay HTML element.
      *
      * @private
      * @return {object} New overlay element.
      */
-    Overlay.prototype._newHTML = function() {
-
-        var opt = this.options;
+    Overlay.prototype._HTMLOverlay = function() {
 
         var overlay = document.createElement('div');
 
-        overlay.setAttribute('id', this.id);
-        overlay.style.width = opt.width;
-        overlay.style.height = opt.height;
+        overlay.style.width = this.options.width;
+        overlay.style.height = this.options.height;
         overlay.style.display = 'none';
         overlay.style.position = 'absolute';
 
         var background = document.createElement('div');
 
-        background.style.width = opt.width;
-        background.style.height = opt.height;
+        background.style.width = this.options.width;
+        background.style.height = this.options.height;
         background.style.position = 'absolute';
-        background.style.opacity = opt.background.opacity;
-        background.style.filter = 'alpha(opacity=' + opt.background.opacity + ')';
-        background.style['background-color'] = opt.background.color;
+        background.style.background = this.options.background_color;
+        background.style.opacity = this.options.background_opacity;
+        background.style.filter = 'alpha(opacity=' + this.options.background_opacity + ')';
 
-        var foreground = document.createElement('div');
+        var foreground = document.createElement('iframe');
 
-        foreground.setAttribute('id', '_' + opt.id);
-        foreground.style.width = opt.width;
-        foreground.style.height = opt.height;
+        foreground.setAttribute('src', this.options.source);
+        foreground.setAttribute('width', this.options.width);
+        foreground.setAttribute('height', this.options.height);
+
         foreground.style.position = 'absolute';
+        // TODO: add padding
 
         overlay.appendChild(background);
         overlay.appendChild(foreground);
-
-        var r = newRequest();
-
-        r.onreadystatechange = function() {
-            if (r.readyState == 4 && (r.status == 200 || r.status == 304)) {
-                foreground.innerHTML = r.responseText;
-            }
-        };
-
-        try {
-            r.open('GET', this.uri, true);
-            r.send();
-        } catch (error) {}
 
         return overlay;
     };
@@ -325,7 +302,7 @@ var Lecture = (function(document) {
     };
 
     /**
-     * Create a new Lecture.
+     * Create a Lecture.
      *
      * A Lecture is made of a series of interconnected components. Each
      * component is either a Video or an Overlay.
@@ -359,7 +336,7 @@ var Lecture = (function(document) {
     // Lecture.prototype.addOverlay - DOING
 
     /**
-     * Create a new Video component.
+     * Create a Video component.
      *
      * A Video should have:
      * - one source per available format/encoding.
@@ -397,7 +374,7 @@ var Lecture = (function(document) {
     };
 
     /**
-     * Create a new Overlay component.
+     * Create an Overlay component.
      *
      * An Overlay is an HTML that's shown over the video. An overlay can be
      * used to control the flow of the lecture, or simply show somthing to the
@@ -406,17 +383,18 @@ var Lecture = (function(document) {
      * @param {string} id - Overlay id.
      * @param {string} source - Overlay source URI.
      * @param {object} [options] - Overlay configuration options.
-     * @param {string} [options.margin=10px] -
-     * @param {string} [options.background_color=white] -
-     * @param {number} [options.background_opacity=1] -
+     * @param {string} [options.padding=10px] - Overlay padding size.
+     * @param {number} [options.background_opacity=1] - Opacity of the background.
+     * @param {string} [options.background_color=white] - Color of the background.
      *
-     * @return {Overlay} New overlay.
+     * @return {Overlay} New Overlay component.
      */
     Lecture.prototype.addOverlay = function(id, source, options) {
 
         options = options || {};
+        options.width = this.options.width;
+        options.height = this.options.height;
         extend(options, this.options.overlay);
-        extend(options, this.options, false);
 
         var overlay = new Overlay(id, source, options);
 
@@ -429,10 +407,11 @@ var Lecture = (function(document) {
     };
 
     /**
-     * Get a video or a overlay object by id.
+     * Get a Video or an Overlay component by id.
      *
      * @param {string} id - Component id.
-     * @return {Video|Overlay} Lecture component.
+     *
+     * @return {Video|Overlay} Existing Lecture component.
      */
     Lecture.prototype.getComponent = function(id) {
 
@@ -444,19 +423,7 @@ var Lecture = (function(document) {
             return this.overlays[id];
         }
 
-        return undefined;
-    };
-
-    /**
-     * Set the initial component for this lecture.
-     *
-     * @param {string} id - Component id.
-     */
-    Lecture.prototype.setInitialComponent = function(id) {
-
-        this.getComponent(this.initial || id).hide();
-        this.getComponent(id).show();
-        this.initial = id;
+        return null;
     };
 
     return Lecture;
