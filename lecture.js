@@ -1,13 +1,11 @@
-var Lecture = (function(document) {
+var Lecture = (function(window, document) {
 
     'use strict';
 
     /**
-     * Defaults for Lecture's options.
+     * Lecture default options.
      */
     var defaultOptions = {
-        width: '500px',
-        height: '300px',
         video: {
             controls: true,
             startTime: 0,
@@ -47,7 +45,7 @@ var Lecture = (function(document) {
     }
 
     /**
-     * Format seconds as hh:mm:ss.xxx (xxx indicates miliseconds).
+     * Format seconds as hh:mm:ss.xxx (xxx indicates milliseconds).
      *
      * @param {number} seconds - Number of seconds.
      *
@@ -72,10 +70,10 @@ var Lecture = (function(document) {
     /**
      * Create a Video component.
      *
+     * @see Lecture#newVideo
      * @constructor
      * @param {string} id - Video id.
      * @param {object} options - Video configuration options.
-     * @see Lecture#newVideo
      */
     function Video(id, options) {
 
@@ -111,23 +109,43 @@ var Lecture = (function(document) {
             video.setAttribute('muted', 'muted');
         }
 
-        var transitions = document.createElement('track');
-
-        transitions.setAttribute('default', 'default');
-        transitions.setAttribute('kind', 'metadata');
-
-        if (this.options.transitions) {
-            transitions.setAttribute('src', this.options.transitions);
+        this.transitions = this._HTMLTransitions(video);
+        this.transitions.mode = "hidden";
+        this.transitions.oncuechange = function () {
+            console.log(this.activeCues);
         }
 
-        video.appendChild(transitions);
         video.appendChild(document.createTextNode(
-            'Sorry, your browser doesn\'t suport HTML5 video.'
+            'Sorry, your browser doesn\'t support HTML5 video.'
         ));
 
-        this.transitions = transitions;
-
         return video;
+    };
+
+    /**
+     * Append a transitions text track to an HTML video.
+     *
+     * @private
+     * @param {object} video - HTML video element.
+     *
+     * @return {object} new HTML TextTrack element.
+     */
+    Video.prototype._HTMLTransitions = function(video) {
+
+        var src = this.options.transitions || "";
+
+        /* IE needs this, but Chrome and Firefox don't support it by default. */
+        if (video.hasOwnProperty('addTextTrack') && !src) {
+
+            return video.addTextTrack('metadata');
+        }
+
+        var track = document.createElement('track');
+
+        track.setAttribute('kind', 'metadata');
+        track.setAttribute('src', src);
+        video.appendChild(track);
+        return track.track;
     };
 
     /**
@@ -135,6 +153,8 @@ var Lecture = (function(document) {
      *
      * @param {string} source - Video source URI.
      * @param {string} [type] - Video MIME type.
+     *
+     * @return {Video} This video, to allow method chaining.
      */
     Video.prototype.addSource = function(source, type) {
 
@@ -156,6 +176,7 @@ var Lecture = (function(document) {
         element.setAttribute('type', type);
 
         this.element.appendChild(element);
+        return this;
     };
 
     /**
@@ -164,6 +185,8 @@ var Lecture = (function(document) {
      * @param {string} language - Language of the subtitles (en, es, ...).
      * @param {string} source - Subtitles file URI.
      * @param {string} [label] - User readable title.
+     *
+     * @return {Video} This video, to allow method chaining.
      */
     Video.prototype.addSubtitle = function(language, source, label) {
 
@@ -178,36 +201,43 @@ var Lecture = (function(document) {
         }
 
         this.element.appendChild(subtitle);
+        return this;
     };
 
     /**
-     * Add a transition to another Video.
+     * Add a transition to another component.
      *
-     * @param {number} time - Trigger the transition at this given time (in seconds).
-     * @param {string} videoId - TODO
-     * @param {number} [startingTime] -
-     * @param {boolean} [startPlaying=true] -
+     * @param {string}  target - Target Video or Overlay.
+     * @param {number}  time - When to trigger the transition.
+     * @param {object}  [options] - Transition configuration options.
+     * @param {number}  [options.time] - Start time of the target Video (if not set, continue from last position).
+     * @param {boolean} [options.play=true] - Start playing the target Video automatically.
+     * @param {number}  [options.duration=0] - If not 0, duration of the Overlay (video will continue playing).
+     *
+     * @return {Video} This video, to allow method chaining.
      */
-    Video.prototype.addVideoTransition = function(time, videoId, startingTime, startPlaying) {
+    Video.prototype.addTransition = function(target, time, options) {
 
-        var text = videoId;
+        options = options || {};
 
-        if (typeof startingTime !== 'undefined') {
-            text += ' ' + secondsToString(startingTime);
+        var until = time + (options.duration || 0);
+        var text  = target.id;
+
+        if (options.hasOwnProperty('time')) {
+            text += ' ' + secondsToString(options.time);
         }
 
-        if (typeof startPlaying !== 'undefined' && !startPlaying) {
+        if (options.hasOwnProperty('play') && !options.play) {
             text += ' stop';
         }
 
-        this.transitions.addCue(new TextTrackCue(time, time, text));
-    };
+        var cue = window.hasOwnProperty('VTTCue') ?
+                  new window.VTTCue(time, until, text) :
+                  new window.TextTrackCue(time, until, text);
 
-    /**
-     * TODO
-     */
-    Video.prototype.addOverlayTransition = function() {
-
+        this.transitions.addCue(cue);
+        console.log(this.transitions);
+        return this;
     };
 
     /**
@@ -231,11 +261,11 @@ var Lecture = (function(document) {
     /**
      * Create an Overlay component.
      *
+     * @see Lecture#newOverlay
      * @constructor
      * @param {string} id - Overlay id.
      * @param {string} source - Overlay source URI.
      * @param {object} options - Overlay configuration options.
-     * @see Lecture#newOverlay
      */
     function Overlay(id, source, options) {
 
@@ -272,7 +302,7 @@ var Lecture = (function(document) {
 
         var foreground = document.createElement('iframe');
 
-        foreground.setAttribute('src', this.options.source);
+        foreground.setAttribute('src', this.source);
         foreground.setAttribute('width', this.options.width);
         foreground.setAttribute('height', this.options.height);
 
@@ -304,47 +334,44 @@ var Lecture = (function(document) {
     /**
      * Create a Lecture.
      *
-     * A Lecture is made of a series of interconnected components. Each
+     * A lecture is made of a series of interconnected components. Each
      * component is either a Video or an Overlay.
      *
      * @constructor
      * @param {object} element - Base HTML element on which to build the Lecture.
-     * @param {object} options - Lecture configuration options.
-     * @param {number} options.width - Lecture HTML elements width.
-     * @param {number} options.height - Lecture HTML elements height.
+     * @param {string} width - Lecture HTML element width.
+     * @param {string} height - Lecture HTML element height.
+     * @param {object} [options] - Lecture configuration options.
      * @param {object} [options.video] - Default Video configuration options.
      * @param {object} [options.overlay] - Default Overlay configuration options.
      */
-    function Lecture(element, options) {
+    function Lecture(element, width, height, options) {
 
-        this.videos   = {};
-        this.overlays = {};
-        this.element  = element;
-        this.options  = options || {};
+        this.width = width;
+        this.height = height;
+        this.element = element;
+        this.options = options || {};
 
         extend(this.options, defaultOptions);
 
+        this.videos = {};
+        this.overlays = {};
         this.currentVideo = null;
         this.currentComponent = null;
 
         element.lecture = this;
     }
 
-    // Lecture.prototype.start
-    // Lecture.prototype.resize
-    // Lecture.prototype.addVideo - DONE
-    // Lecture.prototype.addOverlay - DOING
-
     /**
      * Create a Video component.
      *
-     * A Video should have:
+     * A video should have:
      * - one source per available format/encoding.
      * - one subtitle per supported language.
      * - as many transitions as necessary.
      *
      * A transition is fired when the video reaches a given time, and either
-     * switches to another Video, or shows an Overlay.
+     * switches to another video, or shows an overlay.
      *
      * @param {string}  id - Video id.
      * @param {object}  [options] - Video configuration options.
@@ -358,8 +385,8 @@ var Lecture = (function(document) {
     Lecture.prototype.addVideo = function(id, options) {
 
         options = options || {};
-        options.width = this.options.width;
-        options.height = this.options.height;
+        options.width = this.width;
+        options.height = this.height;
         extend(options, this.options.video);
 
         var video = new Video(id, options);
@@ -376,8 +403,8 @@ var Lecture = (function(document) {
     /**
      * Create an Overlay component.
      *
-     * An Overlay is an HTML that's shown over the video. An overlay can be
-     * used to control the flow of the lecture, or simply show somthing to the
+     * An overlay is an HTML that's shown over the video. An overlay can be
+     * used to control the flow of the lecture, or simply show something to the
      * user in a static format.
      *
      * @param {string} id - Overlay id.
@@ -392,8 +419,8 @@ var Lecture = (function(document) {
     Lecture.prototype.addOverlay = function(id, source, options) {
 
         options = options || {};
-        options.width = this.options.width;
-        options.height = this.options.height;
+        options.width = this.width;
+        options.height = this.height;
         extend(options, this.options.overlay);
 
         var overlay = new Overlay(id, source, options);
@@ -407,7 +434,7 @@ var Lecture = (function(document) {
     };
 
     /**
-     * Get a Video or an Overlay component by id.
+     * Get a lecture component (either a Video or an Overlay) by id.
      *
      * @param {string} id - Component id.
      *
@@ -428,4 +455,4 @@ var Lecture = (function(document) {
 
     return Lecture;
 
-}(document));
+}(window, document));
