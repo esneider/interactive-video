@@ -1,16 +1,20 @@
 <html>
 <head>
-    <script src="lecture.js" type="text/javascript"></script>
+    <script src='lecture.js' type='text/javascript'></script>
 </head>
 <body>
     <div id='lecture'></div>
+
     <script type='text/javascript'>
         var div = document.getElementById('lecture');
-        var lecture = new Lecture(div, '500px', '300px');
+
+        var lecture = new Lecture(div, '500px', '283px');
         var video   = lecture.addVideo('colors').addSource('assets/colors.mp4');
-        var overlay = lecture.addOverlay('test', 'assets/test.html');
-        video.addTransition(overlay, 6);
+        var overlay = lecture.addOverlay('test', 'test.html', {background_opacity: 0.7});
+
+        video.addTransition(overlay, 5);
         video.show();
     </script>
 </body>
 </html>
+
