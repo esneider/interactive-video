@@ -1,4 +1,4 @@
-var Lecture = (function(window, document) {
+var Lecture = (function(document) {
 
     'use strict';
 
@@ -12,7 +12,7 @@ var Lecture = (function(window, document) {
             muted: false,
         },
         overlay: {
-            padding: '10px',
+            margin: '10px',
             background_color: 'white',
             background_opacity: 1,
         },
@@ -45,33 +45,12 @@ var Lecture = (function(window, document) {
     }
 
     /**
-     * Format seconds as hh:mm:ss.xxx (xxx indicates milliseconds).
-     *
-     * @param {number} seconds - Number of seconds.
-     *
-     * @return {string} Formatted string.
-     */
-    function secondsToString(seconds) {
-
-        function getDecimals(n, places) {
-            return (n - Math.floor(n) + 1e-6).toString().substr(2, places);
-        }
-
-        var s = '';
-
-        s += getDecimals(seconds / 360000, 2) + ':';
-        s += getDecimals((seconds % 3600) / 6000, 2) + ':';
-        s += getDecimals((seconds % 60) / 100, 2) + '.';
-        s += getDecimals(seconds, 3);
-
-        return s;
-    }
-
-    /**
      * Create a Video component.
      *
-     * @see Lecture#newVideo
+     * @see Lecture#addVideo
      * @constructor
+     * @name Video
+     *
      * @param {string} id - Video id.
      * @param {object} options - Video configuration options.
      */
@@ -87,7 +66,6 @@ var Lecture = (function(window, document) {
     /**
      * Create a video HTML element.
      *
-     * @private
      * @return {object} New video HTML element.
      */
     Video.prototype._HTMLVideo = function() {
@@ -111,9 +89,6 @@ var Lecture = (function(window, document) {
 
         this.transitions = this._HTMLTransitions(video);
         this.transitions.mode = "hidden";
-        this.transitions.oncuechange = function () {
-            console.log(this.activeCues);
-        }
 
         video.appendChild(document.createTextNode(
             'Sorry, your browser doesn\'t support HTML5 video.'
@@ -125,7 +100,6 @@ var Lecture = (function(window, document) {
     /**
      * Append a transitions text track to an HTML video.
      *
-     * @private
      * @param {object} video - HTML video element.
      *
      * @return {object} new HTML TextTrack element.
@@ -144,12 +118,24 @@ var Lecture = (function(window, document) {
 
         track.setAttribute('kind', 'metadata');
         track.setAttribute('src', src);
+        track.addEventListener('load', function() {
+
+            var cues = this.track.cues;
+
+            for (var i = 0; i < cues.length; i++) {
+                cues[i].onenter = cueEnterHandler;
+                cues[i].onexit = cueExitHandler;
+            }
+        });
+
         video.appendChild(track);
         return track.track;
     };
 
     /**
      * Add a video source for a given video format/encoding.
+     *
+     * @memberof Video
      *
      * @param {string} source - Video source URI.
      * @param {string} [type] - Video MIME type.
@@ -182,6 +168,8 @@ var Lecture = (function(window, document) {
     /**
      * Add a subtitle track to the video.
      *
+     * @memberof Video
+     *
      * @param {string} language - Language of the subtitles (en, es, ...).
      * @param {string} source - Subtitles file URI.
      * @param {string} [label] - User readable title.
@@ -205,9 +193,90 @@ var Lecture = (function(window, document) {
     };
 
     /**
+     * Parse a time string that has one of the following formats:
+     * - hh:mm:ss(.xx)?
+     * - mm:ss(.xx)?
+     * - ss(.xx)?
+     * - .xx
+     *
+     * Where hh, mm, ss and xx are hours, minutes, seconds and
+     * second decimals. hh, mm, ss and xx can have any number of
+     * digits (at least one though).
+     *
+     * @param {string} str - Input string to parse.
+     *
+     * @return {number} Amount of seconds represented by str.
+     */
+    function parseSeconds(str) {
+
+        var pattern = /^(\d+:)?(\d+:)?(\d*\.?\d*)$/;
+        var tokens = str.match(pattern);
+
+        if (!tokens) {
+            return undefined;
+        }
+
+        tokens = tokens.map(parseFloat);
+
+        if (isNaN(tokens[1])) {
+            return tokens[3];
+        }
+
+        if (isNaN(tokens[2])) {
+            return tokens[3] + 60 * tokens[1];
+        }
+
+        return tokens[3] + 60 * tokens[2] + 3600 * tokens[1];
+    }
+
+    /**
+     * Handler for cues enter event.
+     */
+    var cueEnterHandler = function() {
+
+        this.video.currentTime = this.startTime;
+
+        var tokens = this.text.split(' ');
+        var target = this.video.lecture.getComponent(tokens[0]);
+        var time = tokens[1] && parseSeconds(tokens[1]);
+        var play = tokens[2] !== 'stop';
+
+        target.show();
+
+        if (target.constructor === Video) {
+
+            if (typeof time === "number") {
+                target.currentTime = time;
+            }
+
+            if (play) {
+                target.play();
+            }
+        }
+
+        if (target.constructor === Overlay && this.startTime === this.endTime) {
+            this.video.pause();
+        }
+    };
+
+    /**
+     * Handler for cues exit event.
+     */
+    var cueExitHandler = function() {
+
+        var target = this.video.lecture.getComponent(this.text);
+
+        if (target.constructor === Overlay && this.startTime !== this.endTime) {
+            target.hide();
+        }
+    };
+
+    /**
      * Add a transition to another component.
      *
-     * @param {string}  target - Target Video or Overlay.
+     * @memberof Video
+     *
+     * @param {object} target - Target Video or Overlay.
      * @param {number}  time - When to trigger the transition.
      * @param {object}  [options] - Transition configuration options.
      * @param {number}  [options.time] - Start time of the target Video (if not set, continue from last position).
@@ -224,7 +293,7 @@ var Lecture = (function(window, document) {
         var text  = target.id;
 
         if (options.hasOwnProperty('time')) {
-            text += ' ' + secondsToString(options.time);
+            text += ' ' + options.time;
         }
 
         if (options.hasOwnProperty('play') && !options.play) {
@@ -232,28 +301,81 @@ var Lecture = (function(window, document) {
         }
 
         var cue = window.hasOwnProperty('VTTCue') ?
-                  new window.VTTCue(time, until, text) :
-                  new window.TextTrackCue(time, until, text);
+                  new VTTCue(time, until, text) :
+                  new TextTrackCue(time, until, text);
+
+        cue.video = this;
+        cue.onenter = cueEnterHandler;
+        cue.onexit = cueExitHandler;
+
+        /* Needed due to a Chrome bug. */
+        Lecture.cues = Lecture.cues || [];
+        Lecture.cues.push(cue);
 
         this.transitions.addCue(cue);
-        console.log(this.transitions);
+
         return this;
     };
 
     /**
+     * Start video reproduction.
+     *
+     * @memberof Video
+     */
+    Video.prototype.play = function() {
+
+        this.show();
+
+        if (this.element.paused) {
+            console.log(this.currentTime);
+            this.element.currentTime = this.currentTime;
+            this.element.play();
+        }
+    };
+
+    /**
+     * Stop video reproduction.
+     *
+     * @memberof Video
+     */
+    Video.prototype.pause = function() {
+
+        this.element.pause();
+    };
+
+    /**
      * Show video HTML element.
+     *
+     * @memberof Video
      */
     Video.prototype.show = function() {
 
+        if (this.lecture.currentVideo === this) {
+            return;
+        }
+
+        if (this.lecture.currentVideo) {
+            this.lecture.currentVideo.hide();
+        }
+
+        this.lecture.currentVideo = this;
         this.element.setAttribute('preload', 'auto');
         this.element.style.display = 'block';
     };
 
     /**
      * Hide video HTML element.
+     *
+     * @memberof Video
      */
     Video.prototype.hide = function() {
 
+        if (this.lecture.currentVideo !== this) {
+            return;
+        }
+
+        this.pause();
+        this.lecture.currentVideo = null;
         this.element.setAttribute('preload', 'metadata');
         this.element.style.display = 'none';
     };
@@ -261,8 +383,10 @@ var Lecture = (function(window, document) {
     /**
      * Create an Overlay component.
      *
-     * @see Lecture#newOverlay
+     * @see Lecture#addOverlay
      * @constructor
+     * @name Overlay
+     *
      * @param {string} id - Overlay id.
      * @param {string} source - Overlay source URI.
      * @param {object} options - Overlay configuration options.
@@ -279,15 +403,12 @@ var Lecture = (function(window, document) {
     /**
      * Create an overlay HTML element.
      *
-     * @private
      * @return {object} New overlay element.
      */
     Overlay.prototype._HTMLOverlay = function() {
 
         var overlay = document.createElement('div');
 
-        overlay.style.width = this.options.width;
-        overlay.style.height = this.options.height;
         overlay.style.display = 'none';
         overlay.style.position = 'absolute';
 
@@ -305,9 +426,30 @@ var Lecture = (function(window, document) {
         foreground.setAttribute('src', this.source);
         foreground.setAttribute('width', this.options.width);
         foreground.setAttribute('height', this.options.height);
+        foreground.setAttribute('seamless', 'seamless');
 
         foreground.style.position = 'absolute';
-        // TODO: add padding
+        foreground.style.border = 0;
+
+        var margin = this.options.margin;
+
+        foreground.addEventListener('load', function() {
+
+            function doTransition(options) {
+                frameElement.parentNode.overlay.doTransition(options);
+            }
+
+            var html = this.contentDocument.firstChild;
+
+            html.style.margin = margin;
+
+            var script = this.contentDocument.createElement('script');
+
+            script.type = 'text/javascript';
+            script.text = doTransition.toString();
+
+            html.getElementsByTagName('head')[0].appendChild(script);
+        });
 
         overlay.appendChild(background);
         overlay.appendChild(foreground);
@@ -316,18 +458,68 @@ var Lecture = (function(window, document) {
     };
 
     /**
+     * TODO
+     *
+     * @memberof Overlay
+     *
+     * @param {object}  [options]
+     * @param {object}  [options.target=last_video]
+     * @param {number}  [options.time=target.currentTime]
+     * @param {boolean} [options.stop=false]
+     * @param {boolean} [options.hide=true]
+     */
+    Overlay.prototype.doTransition = function(options) {
+
+        options = options || {};
+
+        extend(options, {
+            target: this.lecture.currentVideo.id,
+            stop: false,
+            hide: true,
+        });
+
+        options.target = this.lecture.getComponent(options.target);
+        extend(options, {time: options.target.currentTime});
+
+        options.target.show();
+        options.target.currentTime = options.time;
+
+        if (options.hide) {
+            this.hide();
+        }
+
+        if (!options.stop) {
+            options.target.play();
+        }
+    };
+
+    /**
      * Show overlay HTML element.
+     *
+     * @memberof Overlay
      */
     Overlay.prototype.show = function() {
 
+        if (this.lecture.currentOverlays.hasOwnProperty(this.id)) {
+            return;
+        }
+
+        this.lecture.currentOverlays[this.id] = this;
         this.element.style.display = 'block';
     };
 
     /**
      * Hide overlay HTML element.
+     *
+     * @memberof Overlay
      */
     Overlay.prototype.hide = function() {
 
+        if (!this.lecture.currentOverlays.hasOwnProperty(this.id)) {
+            return;
+        }
+
+        delete this.lecture.currentOverlays[this.id];
         this.element.style.display = 'none';
     };
 
@@ -338,6 +530,8 @@ var Lecture = (function(window, document) {
      * component is either a Video or an Overlay.
      *
      * @constructor
+     * @name Lecture
+     *
      * @param {object} element - Base HTML element on which to build the Lecture.
      * @param {string} width - Lecture HTML element width.
      * @param {string} height - Lecture HTML element height.
@@ -357,7 +551,7 @@ var Lecture = (function(window, document) {
         this.videos = {};
         this.overlays = {};
         this.currentVideo = null;
-        this.currentComponent = null;
+        this.currentOverlays = {};
 
         element.lecture = this;
     }
@@ -372,6 +566,8 @@ var Lecture = (function(window, document) {
      *
      * A transition is fired when the video reaches a given time, and either
      * switches to another video, or shows an overlay.
+     *
+     * @memberof Lecture
      *
      * @param {string}  id - Video id.
      * @param {object}  [options] - Video configuration options.
@@ -391,10 +587,9 @@ var Lecture = (function(window, document) {
 
         var video = new Video(id, options);
 
-        this.videos[id] = video;
-        this.currentVideo = this.currentVideo || id;
-        this.currentComponent = this.currentComponent || id;
+        video.lecture = this;
 
+        this.videos[id] = video;
         this.element.appendChild(video.element);
 
         return video;
@@ -407,10 +602,12 @@ var Lecture = (function(window, document) {
      * used to control the flow of the lecture, or simply show something to the
      * user in a static format.
      *
+     * @memberof Lecture
+     *
      * @param {string} id - Overlay id.
      * @param {string} source - Overlay source URI.
      * @param {object} [options] - Overlay configuration options.
-     * @param {string} [options.padding=10px] - Overlay padding size.
+     * @param {string} [options.margin=10px] - Overlay margin size.
      * @param {number} [options.background_opacity=1] - Opacity of the background.
      * @param {string} [options.background_color=white] - Color of the background.
      *
@@ -425,9 +622,9 @@ var Lecture = (function(window, document) {
 
         var overlay = new Overlay(id, source, options);
 
-        this.overlays[id] = overlay;
-        this.currentComponent = this.currentComponent || id;
+        overlay.lecture = this;
 
+        this.overlays[id] = overlay;
         this.element.appendChild(overlay.element);
 
         return overlay;
@@ -435,6 +632,8 @@ var Lecture = (function(window, document) {
 
     /**
      * Get a lecture component (either a Video or an Overlay) by id.
+     *
+     * @memberof Lecture
      *
      * @param {string} id - Component id.
      *
@@ -455,4 +654,4 @@ var Lecture = (function(window, document) {
 
     return Lecture;
 
-}(window, document));
+}(document));
