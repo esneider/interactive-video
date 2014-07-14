@@ -327,8 +327,7 @@ var Lecture = (function(document) {
         this.show();
 
         if (this.element.paused) {
-            console.log(this.currentTime);
-            this.element.currentTime = this.currentTime;
+            this.element.currentTime = this.currentTime + 0.001;
             this.element.play();
         }
     };
