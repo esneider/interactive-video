@@ -321,13 +321,19 @@ var Lecture = (function(document) {
      * Start video reproduction.
      *
      * @memberof Video
+     *
+     * @param {boolean} [returning=false] - Whether we are returning from an overlay.
      */
-    Video.prototype.play = function() {
+    Video.prototype.play = function(returning) {
 
         this.show();
 
         if (this.element.paused) {
-            this.element.currentTime = this.currentTime + 0.001;
+
+            if (!returning) {
+                this.element.currentTime = this.currentTime;
+            }
+
             this.element.play();
         }
     };
@@ -478,7 +484,11 @@ var Lecture = (function(document) {
         });
 
         options.target = this.lecture.getComponent(options.target);
+
         extend(options, {time: options.target.currentTime});
+
+        var returning = options.target === this.lecture.currentVideo &&
+                        options.time   === this.lecture.currentVideo.currentTime;
 
         options.target.show();
         options.target.currentTime = options.time;
@@ -488,7 +498,7 @@ var Lecture = (function(document) {
         }
 
         if (!options.stop) {
-            options.target.play();
+            options.target.play(returning);
         }
     };
 
