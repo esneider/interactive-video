@@ -78,6 +78,7 @@ var Lecture = (function(document) {
 
         video.style.display = 'none';
         video.style.position = 'absolute';
+        video.style['z-index'] = 0;
 
         if (this.options.controls) {
             video.setAttribute('controls', 'controls');
@@ -515,6 +516,7 @@ var Lecture = (function(document) {
 
         this.lecture.currentOverlays[this.id] = this;
         this.element.style.display = 'block';
+        this.element.style['z-index'] = ++this.lecture.zIndexCount;
     };
 
     /**
@@ -559,6 +561,7 @@ var Lecture = (function(document) {
 
         this.videos = {};
         this.overlays = {};
+        this.zIndexCount = 0;
         this.currentVideo = null;
         this.currentOverlays = {};
 
