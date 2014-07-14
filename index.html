@@ -9,8 +9,10 @@
         var div = document.getElementById('lecture');
 
         var lecture = new Lecture(div, '500px', '283px');
-        var video   = lecture.addVideo('colors').addSource('assets/colors.mp4');
         var overlay = lecture.addOverlay('test', 'test.html', {background_opacity: 0.7});
+        var video   = lecture.addVideo('colors')
+                             .addSource('assets/colors.mp4')
+                             .addSource('assets/colors.webm');
 
         video.addTransition(overlay, 5);
         video.show();
