@@ -1,4 +1,4 @@
-var Lecture = (function(window, document) {
+var Lecture = (function(document) {
 
     'use strict';
 
@@ -119,7 +119,10 @@ var Lecture = (function(window, document) {
         track.setAttribute('kind', 'metadata');
         track.setAttribute('src', src);
         track.addEventListener('load', function() {
-            for (var cues = this.track.cues, i = 0; i < cues.length; i++) {
+
+            var cues = this.track.cues;
+
+            for (var i = 0; i < cues.length; i++) {
                 cues[i].onenter = cueEnterHandler;
                 cues[i].onexit = cueExitHandler;
             }
@@ -273,7 +276,7 @@ var Lecture = (function(window, document) {
      *
      * @memberof Video
      *
-     * @param {string}  target - Target Video or Overlay.
+     * @param {object} target - Target Video or Overlay.
      * @param {number}  time - When to trigger the transition.
      * @param {object}  [options] - Transition configuration options.
      * @param {number}  [options.time] - Start time of the target Video (if not set, continue from last position).
@@ -298,8 +301,8 @@ var Lecture = (function(window, document) {
         }
 
         var cue = window.hasOwnProperty('VTTCue') ?
-                  new window.VTTCue(time, until, text) :
-                  new window.TextTrackCue(time, until, text);
+                  new VTTCue(time, until, text) :
+                  new TextTrackCue(time, until, text);
 
         cue.video = this;
         cue.onenter = cueEnterHandler;
@@ -324,6 +327,7 @@ var Lecture = (function(window, document) {
         this.show();
 
         if (this.element.paused) {
+            console.log(this.currentTime);
             this.element.currentTime = this.currentTime;
             this.element.play();
         }
@@ -429,17 +433,64 @@ var Lecture = (function(window, document) {
 
         var margin = this.options.margin;
 
-        foreground.addEventListener('load', function () {
-            var html = this.contentDocument.getElementsByTagName('html')[0];
-            if (html) {
-                html.style.margin = margin;
+        foreground.addEventListener('load', function() {
+
+            function doTransition(options) {
+                frameElement.parentNode.overlay.doTransition(options);
             }
+
+            var html = this.contentDocument.firstChild;
+
+            html.style.margin = margin;
+
+            var script = this.contentDocument.createElement('script');
+
+            script.type = 'text/javascript';
+            script.text = doTransition.toString();
+
+            html.getElementsByTagName('head')[0].appendChild(script);
         });
 
         overlay.appendChild(background);
         overlay.appendChild(foreground);
 
         return overlay;
+    };
+
+    /**
+     * TODO
+     *
+     * @memberof Overlay
+     *
+     * @param {object}  [options]
+     * @param {object}  [options.target=last_video]
+     * @param {number}  [options.time=target.currentTime]
+     * @param {boolean} [options.stop=false]
+     * @param {boolean} [options.hide=true]
+     */
+    Overlay.prototype.doTransition = function(options) {
+
+        options = options || {};
+
+        extend(options, {
+            target: this.lecture.currentVideo.id,
+            stop: false,
+            hide: true,
+        });
+
+        options.target = this.lecture.getComponent(options.target);
+        extend(options, {time: options.target.currentTime});
+
+        options.target.show();
+        options.target.currentTime = options.time;
+
+        if (options.hide) {
+            this.hide();
+        }
+
+        if (!options.stop) {
+            options.target.play();
+        }
     };
 
     /**
@@ -603,4 +654,4 @@ var Lecture = (function(window, document) {
 
     return Lecture;
 
-}(window, document));
+}(document));
