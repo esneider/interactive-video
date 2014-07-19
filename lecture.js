@@ -10,6 +10,7 @@ var Lecture = (function(document) {
             controls: true,
             startTime: 0,
             muted: false,
+            background_color: 'black',
         },
         overlay: {
             margin: '10px',
@@ -47,9 +48,9 @@ var Lecture = (function(document) {
     /**
      * Create a Video component.
      *
-     * @see Lecture#addVideo
      * @constructor
      * @name Video
+     * @see Lecture#addVideo
      *
      * @param {string} id - Video id.
      * @param {object} options - Video configuration options.
@@ -59,8 +60,9 @@ var Lecture = (function(document) {
         this.id = id;
         this.options = options;
         this.currentTime = options.startTime;
-        this.element = this._HTMLVideo();
-        this.element.video = this;
+
+        this.container = this._VideoHTML();
+        this.container.video = this;
     }
 
     /**
@@ -68,17 +70,17 @@ var Lecture = (function(document) {
      *
      * @return {object} New video HTML element.
      */
-    Video.prototype._HTMLVideo = function() {
+    Video.prototype._VideoHTML = function() {
+
+        var container = document.createElement('div');
+
+        container.style.width = 'inherit';
+        container.style.height = 'inherit';
+        container.style.display = 'none';
 
         var video = document.createElement('video');
 
-        video.setAttribute('width', this.options.width);
-        video.setAttribute('height', this.options.height);
         video.setAttribute('preload', 'metadata');
-
-        video.style.display = 'none';
-        video.style.position = 'absolute';
-        video.style['z-index'] = 0;
 
         if (this.options.controls) {
             video.setAttribute('controls', 'controls');
@@ -88,49 +90,71 @@ var Lecture = (function(document) {
             video.setAttribute('muted', 'muted');
         }
 
-        this.transitions = this._HTMLTransitions(video);
-        this.transitions.mode = "hidden";
+        video.style.width = 'inherit';
+        video.style.height = 'inherit';
+        video.style['z-index'] = 0;
 
         video.appendChild(document.createTextNode(
             'Sorry, your browser doesn\'t support HTML5 video.'
         ));
 
-        return video;
+        container.appendChild(video);
+
+        if (this.options.background_color) {
+
+            var background = document.createElement('div');
+
+            background.style.top = 0;
+            background.style.width = '100%';
+            background.style.height = '100%';
+            background.style.position = 'absolute';
+            background.style['z-index'] = -1;
+            background.style.background = this.options.background_color;
+
+            container.appendChild(background);
+        }
+
+        this.video = video;
+        this.transitions = this._TransitionsTrackHTML();
+
+        return container;
     };
 
     /**
      * Append a transitions text track to an HTML video.
      *
-     * @param {object} video - HTML video element.
-     *
      * @return {object} new HTML TextTrack element.
      */
-    Video.prototype._HTMLTransitions = function(video) {
+    Video.prototype._TransitionsTrackHTML = function() {
 
-        var src = this.options.transitions || "";
+        var src = this.options.transitions || '';
 
         /* IE needs this, but Chrome and Firefox don't support it by default. */
-        if (video.hasOwnProperty('addTextTrack') && !src) {
+        if (this.video.hasOwnProperty('addTextTrack') && !src) {
 
-            return video.addTextTrack('metadata');
+            var track = this.video.addTextTrack('metadata');
+            track.mode = 'hidden';
+            return track;
         }
 
-        var track = document.createElement('track');
+        var node = document.createElement('track');
 
-        track.setAttribute('kind', 'metadata');
-        track.setAttribute('src', src);
-        track.addEventListener('load', function() {
+        node.setAttribute('kind', 'metadata');
+        node.setAttribute('src', src);
+        node.addEventListener('load', function() {
 
             var cues = this.track.cues;
 
             for (var i = 0; i < cues.length; i++) {
+                cues[i].video = this.video;
                 cues[i].onenter = cueEnterHandler;
                 cues[i].onexit = cueExitHandler;
             }
         });
 
-        video.appendChild(track);
-        return track.track;
+        this.video.appendChild(node);
+        node.track.mode = 'hidden';
+        return node.track;
     };
 
     /**
@@ -157,12 +181,12 @@ var Lecture = (function(document) {
             }
         }
 
-        var element = document.createElement('source');
+        var node = document.createElement('source');
 
-        element.setAttribute('src', source);
-        element.setAttribute('type', type);
+        node.setAttribute('src', source);
+        node.setAttribute('type', type);
 
-        this.element.appendChild(element);
+        this.video.appendChild(node);
         return this;
     };
 
@@ -189,7 +213,7 @@ var Lecture = (function(document) {
             subtitle.setAttribute('label', label);
         }
 
-        this.element.appendChild(subtitle);
+        this.video.appendChild(subtitle);
         return this;
     };
 
@@ -277,7 +301,7 @@ var Lecture = (function(document) {
      *
      * @memberof Video
      *
-     * @param {object} target - Target Video or Overlay.
+     * @param {object}  target - Target Video or Overlay.
      * @param {number}  time - When to trigger the transition.
      * @param {object}  [options] - Transition configuration options.
      * @param {number}  [options.time] - Start time of the target Video (if not set, continue from last position).
@@ -329,13 +353,13 @@ var Lecture = (function(document) {
 
         this.show();
 
-        if (this.element.paused) {
+        if (this.video.paused) {
 
             if (!returning) {
-                this.element.currentTime = this.currentTime;
+                this.video.currentTime = this.currentTime;
             }
 
-            this.element.play();
+            this.video.play();
         }
     };
 
@@ -346,7 +370,7 @@ var Lecture = (function(document) {
      */
     Video.prototype.pause = function() {
 
-        this.element.pause();
+        this.video.pause();
     };
 
     /**
@@ -365,8 +389,8 @@ var Lecture = (function(document) {
         }
 
         this.lecture.currentVideo = this;
-        this.element.setAttribute('preload', 'auto');
-        this.element.style.display = 'block';
+        this.video.setAttribute('preload', 'auto');
+        this.container.style.display = 'block';
     };
 
     /**
@@ -382,16 +406,16 @@ var Lecture = (function(document) {
 
         this.pause();
         this.lecture.currentVideo = null;
-        this.element.setAttribute('preload', 'metadata');
-        this.element.style.display = 'none';
+        this.video.setAttribute('preload', 'metadata');
+        this.container.style.display = 'none';
     };
 
     /**
      * Create an Overlay component.
      *
-     * @see Lecture#addOverlay
      * @constructor
      * @name Overlay
+     * @see Lecture#addOverlay
      *
      * @param {string} id - Overlay id.
      * @param {string} source - Overlay source URI.
@@ -402,8 +426,8 @@ var Lecture = (function(document) {
         this.id = id;
         this.source = source;
         this.options = options;
-        this.element = this._HTMLOverlay();
-        this.element.overlay = this;
+        this.container = this._OverlayHTML();
+        this.container.overlay = this;
     }
 
     /**
@@ -411,31 +435,41 @@ var Lecture = (function(document) {
      *
      * @return {object} New overlay element.
      */
-    Overlay.prototype._HTMLOverlay = function() {
+    Overlay.prototype._OverlayHTML = function() {
 
-        var overlay = document.createElement('div');
+        var container = document.createElement('div');
 
-        overlay.style.display = 'none';
-        overlay.style.position = 'absolute';
+        container.style.top = 0;
+        container.style.width = '100%';
+        container.style.height = '100%';
+        container.style.position = 'absolute';
+        container.style.display = 'none';
 
-        var background = document.createElement('div');
+        if (this.options.background_color) {
 
-        background.style.width = this.options.width;
-        background.style.height = this.options.height;
-        background.style.position = 'absolute';
-        background.style.background = this.options.background_color;
-        background.style.opacity = this.options.background_opacity;
-        background.style.filter = 'alpha(opacity=' + this.options.background_opacity + ')';
+            var background = document.createElement('div');
+
+            background.style.width = '100%';
+            background.style.height = '100%';
+            background.style.position = 'absolute';
+            background.style.background = this.options.background_color;
+            background.style.opacity = this.options.background_opacity;
+            background.style.filter = 'alpha(opacity=' + this.options.background_opacity + ')';
+
+            container.appendChild(background);
+        }
 
         var foreground = document.createElement('iframe');
 
         foreground.setAttribute('src', this.source);
-        foreground.setAttribute('width', this.options.width);
-        foreground.setAttribute('height', this.options.height);
         foreground.setAttribute('seamless', 'seamless');
 
-        foreground.style.position = 'absolute';
         foreground.style.border = 0;
+        foreground.style.width = '100%';
+        foreground.style.height = '100%';
+        foreground.style.position = 'absolute';
+
+        container.appendChild(foreground);
 
         var margin = this.options.margin;
 
@@ -457,10 +491,7 @@ var Lecture = (function(document) {
             html.getElementsByTagName('head')[0].appendChild(script);
         });
 
-        overlay.appendChild(background);
-        overlay.appendChild(foreground);
-
-        return overlay;
+        return container;
     };
 
     /**
@@ -515,8 +546,8 @@ var Lecture = (function(document) {
         }
 
         this.lecture.currentOverlays[this.id] = this;
-        this.element.style.display = 'block';
-        this.element.style['z-index'] = ++this.lecture.zIndexCount;
+        this.container.style.display = 'block';
+        this.container.style['z-index'] = ++this.lecture.zIndexCount;
     };
 
     /**
@@ -531,7 +562,7 @@ var Lecture = (function(document) {
         }
 
         delete this.lecture.currentOverlays[this.id];
-        this.element.style.display = 'none';
+        this.container.style.display = 'none';
     };
 
     /**
@@ -543,20 +574,13 @@ var Lecture = (function(document) {
      * @constructor
      * @name Lecture
      *
-     * @param {object} element - Base HTML element on which to build the Lecture.
-     * @param {string} width - Lecture HTML element width.
-     * @param {string} height - Lecture HTML element height.
      * @param {object} [options] - Lecture configuration options.
      * @param {object} [options.video] - Default Video configuration options.
      * @param {object} [options.overlay] - Default Overlay configuration options.
      */
-    function Lecture(element, width, height, options) {
+    function Lecture(options) {
 
-        this.width = width;
-        this.height = height;
-        this.element = element;
         this.options = options || {};
-
         extend(this.options, defaultOptions);
 
         this.videos = {};
@@ -564,9 +588,22 @@ var Lecture = (function(document) {
         this.zIndexCount = 0;
         this.currentVideo = null;
         this.currentOverlays = {};
-
-        element.lecture = this;
+        this.container = this._LectureHTML();
     }
+
+    /**
+     * TODO
+     */
+    Lecture.prototype._LectureHTML = function() {
+
+        var container = document.createElement('div');
+
+        container.style.width = 'inherit';
+        container.style.height = 'inherit';
+        container.style.position = 'absolute';
+
+        return container;
+    };
 
     /**
      * Create a Video component.
@@ -587,22 +624,20 @@ var Lecture = (function(document) {
      * @param {number}  [options.startTime=0] - Video start time.
      * @param {boolean} [options.muted=false] - Whether the video is muted.
      * @param {boolean} [options.controls=true] - Whether the video controls are shown.
+     * @param {string}  [options.background_color=black] - Color of the background.
      *
      * @return {Video} New Video component.
      */
     Lecture.prototype.addVideo = function(id, options) {
 
         options = options || {};
-        options.width = this.width;
-        options.height = this.height;
         extend(options, this.options.video);
 
         var video = new Video(id, options);
 
         video.lecture = this;
-
         this.videos[id] = video;
-        this.element.appendChild(video.element);
+        this.container.appendChild(video.container);
 
         return video;
     };
@@ -628,16 +663,13 @@ var Lecture = (function(document) {
     Lecture.prototype.addOverlay = function(id, source, options) {
 
         options = options || {};
-        options.width = this.width;
-        options.height = this.height;
         extend(options, this.options.overlay);
 
         var overlay = new Overlay(id, source, options);
 
         overlay.lecture = this;
-
         this.overlays[id] = overlay;
-        this.element.appendChild(overlay.element);
+        this.container.appendChild(overlay.container);
 
         return overlay;
     };
@@ -662,6 +694,14 @@ var Lecture = (function(document) {
         }
 
         return null;
+    };
+
+    /**
+     * TODO
+     */
+    Lecture.prototype.attach = function(id) {
+
+        document.getElementById(id).appendChild(this.container);
     };
 
     return Lecture;
