@@ -117,6 +117,10 @@ var Lecture = (function(document) {
         this.video = video;
         this.transitions = this._TransitionsTrackHTML();
 
+        var controls = this._ControlsHTML();
+        this.controls = controls;
+        container.appendChild(controls);
+
         return container;
     };
 
@@ -155,6 +159,58 @@ var Lecture = (function(document) {
         this.video.appendChild(node);
         node.track.mode = 'hidden';
         return node.track;
+    };
+
+    /**
+     * TODO
+     */
+    Video.prototype._ControlsHTML = function() {
+
+        var container = document.createElement('div');
+
+        container.style.height = '35px';
+        container.style.background = '#1b1b1b';
+
+        var progress = document.createElement('div');
+
+        progress.style.height = '8px';
+        progress.style.background = '#444';
+        progress.style.position = 'relative';
+
+        container.appendChild(progress);
+
+        var loaded = document.createElement('div');
+
+        loaded.style.height = '100%';
+        loaded.style.width = '50%';
+        loaded.style.position = 'absolute';
+        loaded.style.background = '#777';
+
+        progress.appendChild(loaded);
+
+        var done = document.createElement('div');
+
+        done.style.height = '100%';
+        done.style.width = '0%';
+        done.style.background = '#cc181e';
+        done.style.position = 'absolute';
+
+        progress.appendChild(done);
+
+        var bullet = document.createElement('div');
+
+        bullet.style.height = '6px';
+        bullet.style.width = '6px';
+        bullet.style.position = 'absolute';
+        bullet.style.top = '-4px';
+        bullet.style.background = '#aeaeae';
+        bullet.style.right = '-8px';
+        bullet.style['border-radius'] = '8px';
+        bullet.style.border = '5px solid #eaeaea';
+
+        done.appendChild(bullet);
+
+        return container;
     };
 
     /**
