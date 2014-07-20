@@ -1,4 +1,4 @@
-var Lecture = (function(document) {
+var Lecture = (function() {
 
     'use strict';
 
@@ -58,6 +58,7 @@ var Lecture = (function(document) {
     function Video(id, options) {
 
         this.id = id;
+        this.data = {};
         this.options = options;
         this.currentTime = options.startTime;
 
@@ -98,21 +99,54 @@ var Lecture = (function(document) {
             'Sorry, your browser doesn\'t support HTML5 video.'
         ));
 
+        var that = this;
+
+        video.addEventListener('durationchange', function() {
+            that.data.duration = this.duration;
+        });
+
+        video.addEventListener('loadedmetadata', function() {
+            that.data.width = this.videoWidth;
+            that.data.height = this.videoHeight;
+        });
+
+        video.addEventListener('progress', function() {
+
+            setInterval(function () {
+                var position = video.currentTime;
+                var ranges = video.buffered;
+                var bound = 0;
+
+                for (var i = 0; i < ranges.length; i++) {
+
+                    var start = ranges.start(i);
+                    var end = ranges.end(i);
+
+                    if (start <= position && position <= end && end > bound) {
+                        bound = end;
+                    }
+                }
+
+                that.setLoadPosition(bound);
+            }, 200);
+        });
+
+        video.addEventListener('timeupdate', function() {
+            that.setPlayPosition(this.currentTime);
+        });
+
         container.appendChild(video);
 
-        if (this.options.background_color) {
+        var background = document.createElement('div');
 
-            var background = document.createElement('div');
+        background.style.top = 0;
+        background.style.width = '100%';
+        background.style.height = '100%';
+        background.style.position = 'absolute';
+        background.style['z-index'] = -1;
+        background.style.background = this.options.background_color;
 
-            background.style.top = 0;
-            background.style.width = '100%';
-            background.style.height = '100%';
-            background.style.position = 'absolute';
-            background.style['z-index'] = -1;
-            background.style.background = this.options.background_color;
-
-            container.appendChild(background);
-        }
+        container.appendChild(background);
 
         this.video = video;
         this.transitions = this._TransitionsTrackHTML();
@@ -182,33 +216,61 @@ var Lecture = (function(document) {
         var loaded = document.createElement('div');
 
         loaded.style.height = '100%';
-        loaded.style.width = '50%';
+        loaded.style.width = 0;
         loaded.style.position = 'absolute';
         loaded.style.background = '#777';
 
+        this.setLoadPosition = function(position) {
+
+            var percentage = 100 * position / this.data.duration;
+
+            loaded.style.width = percentage + '%';
+
+            this.data.loadPosition = position;
+        };
+
         progress.appendChild(loaded);
 
-        var done = document.createElement('div');
+        var bar = document.createElement('div');
 
-        done.style.height = '100%';
-        done.style.width = '0%';
-        done.style.background = '#cc181e';
-        done.style.position = 'absolute';
+        bar.style.height = '100%';
+        bar.style.position = 'relative';
+        bar.style['padding-left'] = '8px';
+        bar.style['padding-right'] = '8px';
 
-        progress.appendChild(done);
+        progress.appendChild(bar);
+
+        var played = document.createElement('div');
+
+        played.style.height = '100%';
+        played.style.width = 0;
+        played.style.background = '#cc181e';
+        played.style['margin-left'] = '-8px';
+        played.style['padding-left'] = '8px';
+
+        this.setPlayPosition = function(position) {
+
+            var percentage = 100 * position / this.data.duration;
+
+            played.style.width = percentage + '%';
+
+            this.data.playPosition = position;
+        };
+
+        bar.appendChild(played);
 
         var bullet = document.createElement('div');
 
         bullet.style.height = '6px';
         bullet.style.width = '6px';
-        bullet.style.position = 'absolute';
-        bullet.style.top = '-4px';
         bullet.style.background = '#aeaeae';
-        bullet.style.right = '-8px';
         bullet.style['border-radius'] = '8px';
         bullet.style.border = '5px solid #eaeaea';
+        bullet.style.float = 'right';
+        bullet.style['margin-right'] = '-8px';
+        bullet.style['margin-top'] = '-4px';
 
-        done.appendChild(bullet);
+        played.appendChild(bullet);
 
         return container;
     };
@@ -484,6 +546,12 @@ var Lecture = (function(document) {
         this.container.overlay = this;
     }
 
+    function setOpacity(element, opacity) {
+
+        element.style.opacity = opacity;
+        element.style.filter = 'alpha(opacity=' + opacity + ')';
+    }
+
     /**
      * Create an overlay HTML element.
      *
@@ -499,19 +567,16 @@ var Lecture = (function(document) {
         container.style.position = 'absolute';
         container.style.display = 'none';
 
-        if (this.options.background_color) {
+        var background = document.createElement('div');
 
-            var background = document.createElement('div');
+        background.style.width = '100%';
+        background.style.height = '100%';
+        background.style.position = 'absolute';
+        background.style.background = this.options.background_color;
 
-            background.style.width = '100%';
-            background.style.height = '100%';
-            background.style.position = 'absolute';
-            background.style.background = this.options.background_color;
-            background.style.opacity = this.options.background_opacity;
-            background.style.filter = 'alpha(opacity=' + this.options.background_opacity + ')';
+        setOpacity(background, this.options.background_opacity);
 
-            container.appendChild(background);
-        }
+        container.appendChild(background);
 
         var foreground = document.createElement('iframe');
 
@@ -761,4 +826,4 @@ var Lecture = (function(document) {
 
     return Lecture;
 
-}(document));
+}());
