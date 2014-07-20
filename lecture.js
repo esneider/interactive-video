@@ -146,9 +146,9 @@ var Lecture = (function(document) {
             var cues = this.track.cues;
 
             for (var i = 0; i < cues.length; i++) {
-                cues[i].video = this.video;
                 cues[i].onenter = cueEnterHandler;
                 cues[i].onexit = cueExitHandler;
+                cues[i].video = this.video;
             }
         });
 
@@ -325,13 +325,11 @@ var Lecture = (function(document) {
             text += ' stop';
         }
 
-        var cue = window.hasOwnProperty('VTTCue') ?
-                  new VTTCue(time, until, text) :
-                  new TextTrackCue(time, until, text);
+        var cue = new (VTTCue || TextTrackCue)(time, until, text);
 
-        cue.video = this;
         cue.onenter = cueEnterHandler;
         cue.onexit = cueExitHandler;
+        cue.video = this;
 
         /* Needed due to a Chrome bug. */
         Lecture.cues = Lecture.cues || [];
@@ -702,6 +700,7 @@ var Lecture = (function(document) {
     Lecture.prototype.attach = function(id) {
 
         document.getElementById(id).appendChild(this.container);
+        return this;
     };
 
     return Lecture;
