@@ -1,0 +1,109 @@
+.lecture-container {
+    width: inherit;
+    height: inherit;
+    position: absolute;
+}
+
+.video-container {
+    width: inherit;
+    height: inherit;
+    visibility: hidden;
+}
+
+.video-video {
+    width: inherit;
+    height: inherit;
+    z-index: 0;
+}
+
+.video-background {
+    top: 0;
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    z-index: -1;
+    background: black;
+}
+
+.controls-container {
+    height: 35px;
+    background: #1b1b1b;
+}
+
+.controls-progress {
+    height: 8px;
+    background: #444;
+    position: relative;
+}
+
+.controls-loaded {
+    height: 100%;
+    width: 0;
+    position: absolute;
+    background: #777;
+}
+
+.controls-bar {
+    height: 100%;
+    position: relative;
+    padding-left: 8px;
+    padding-right: 8px;
+}
+
+.controls-played {
+    height: 100%;
+    width: 0;
+    background: #cc181e;
+    margin-left: -8px;
+    padding-left: 8px;
+}
+
+.controls-bullet {
+    height: 6px;
+    width: 6px;
+    background: #aeaeae;
+    border-radius: 8px;
+    border: 5px solid #eaeaea;
+    float: right;
+    margin-right: -8px;
+    margin-top: -4px;
+}
+
+.video-show {
+    visibility: visible;
+}
+
+.overlay-container {
+    top: 0;
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    visibility: hidden;
+    opacity: 0;
+    filter: alpha(opacity=0);
+    -webkit-transition: opacity 0.2s;
+    -moz-transition: opacity 0.2s;
+    -ms-transition: opacity 0.2s;
+    -o-transition: opacity 0.2s;
+    transition: opacity 0.2s;
+}
+
+.overlay-background {
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    background: white;
+}
+
+.overlay-foreground {
+    border: 0;
+    width: 100%;
+    height: 100%;
+    position: absolute;
+}
+
+.overlay-show {
+    visibility: visible;
+    opacity: 1;
+    filter: alpha(opacity=1);
+}

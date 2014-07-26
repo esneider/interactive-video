@@ -10,12 +10,15 @@ var Lecture = (function() {
             controls: true,
             startTime: 0,
             muted: false,
-            background_color: 'black',
         },
         overlay: {
             margin: '10px',
-            background_color: 'white',
-            background_opacity: 1,
+        },
+        transition: {
+            play: true,
+            duration: 0,
+            stop: false,
+            hide: true,
         },
     };
 
@@ -23,9 +26,9 @@ var Lecture = (function() {
      * Video MIME types with file extensions.
      */
     var videoMIME = {
-        'video/mp4': /^(mp4|m4a|m4p|m4b|m4r|m4v)$/i,
-        'video/ogg': /^(ogg|ogv|oga|ogx|ogm|spx|opus)$/i,
-        'video/webm': /^(webm)$/i,
+        'video/mp4': /\.(mp4|m4a|m4p|m4b|m4r|m4v)$/i,
+        'video/ogg': /\.(ogg|ogv|oga|ogx|ogm|spx|opus)$/i,
+        'video/webm': /\.(webm)$/i,
     };
 
     /**
@@ -48,73 +51,151 @@ var Lecture = (function() {
     /**
      * Create a Video component.
      *
+     * @see Lecture#addVideo
      * @constructor
      * @name Video
-     * @see Lecture#addVideo
      *
-     * @param {string} id - Video id.
-     * @param {object} options - Video configuration options.
+     * @param {Lecture} lecture - Parent lecture.
+     * @param {string}  id - Video unique name.
+     * @param {object}  options - Video configuration options.
      */
-    function Video(id, options) {
+    function Video(lecture, id, options) {
 
+        this.lecture = lecture;
         this.id = id;
-        this.data = {};
         this.options = options;
+
+        this.data = {};
         this.currentTime = options.startTime;
 
-        this.container = this._VideoHTML();
+        createVideoContainer.call(this);
+        createTransitionsTrack.call(this);
+        addVideoListeners.call(this);
+
         this.container.video = this;
+        lecture.videos[id] = this;
+        lecture.container.appendChild(this.container);
     }
 
     /**
-     * Create a video HTML element.
-     *
-     * @return {object} New video HTML element.
+     * Create and setup the HTML elements for a Video.
      */
-    Video.prototype._VideoHTML = function() {
+    function createVideoContainer() {
 
-        var container = document.createElement('div');
+        this.container  = document.createElement('div');
+        this.video      = newVideoElement.call(this);
+        this.background = document.createElement('div');
+        this.controls   = newControls.call(this);
 
-        container.style.width = 'inherit';
-        container.style.height = 'inherit';
-        container.style.display = 'none';
+        this.container.appendChild(this.video);
+        this.container.appendChild(this.background);
+        this.container.appendChild(this.controls);
+
+        this.container.classList.add('video-container');
+        this.background.classList.add('video-background');
+
+        if (this.options.background) {
+            this.background.style.background = this.options.background;
+        }
+    }
+
+    /**
+     * Create an HTML video element.
+     *
+     * @return {object} Video element.
+     */
+    function newVideoElement() {
 
         var video = document.createElement('video');
 
-        video.setAttribute('preload', 'metadata');
+        video.classList.add('video-video');
 
-        if (this.options.controls) {
-            video.setAttribute('controls', 'controls');
-        }
+        video.setAttribute('preload', 'metadata');
+        video.setAttribute('controls', 'controls');
 
         if (this.options.muted) {
             video.setAttribute('muted', 'muted');
         }
 
-        video.style.width = 'inherit';
-        video.style.height = 'inherit';
-        video.style['z-index'] = 0;
-
         video.appendChild(document.createTextNode(
             'Sorry, your browser doesn\'t support HTML5 video.'
         ));
 
+        return video;
+    }
+
+    /**
+     * Create the HTML elements for the video controls.
+     *
+     * @return {object} Controls container element.
+     */
+    function newControls() {
+
+        var container = document.createElement('div');
+        var progress  = document.createElement('div');
+        var loaded    = document.createElement('div');
+        var bar       = document.createElement('div');
+        var played    = document.createElement('div');
+        var bullet    = document.createElement('div');
+
+        container.classList.add('controls-container');
+         progress.classList.add('controls-progress');
+           loaded.classList.add('controls-loaded');
+              bar.classList.add('controls-bar');
+           played.classList.add('controls-played');
+           bullet.classList.add('controls-bullet');
+
+        container.appendChild(progress);
+         progress.appendChild(loaded);
+         progress.appendChild(bar);
+              bar.appendChild(played);
+           played.appendChild(bullet);
+
+        this.setLoadPosition = function(position) {
+
+            var percentage = 100 * position / this.data.duration;
+
+            loaded.style.width = percentage + '%';
+
+            this.data.loadPosition = position;
+        };
+
+        this.setPlayPosition = function(position) {
+
+            var percentage = 100 * position / this.data.duration;
+
+            played.style.width = percentage + '%';
+
+            this.data.playPosition = position;
+        };
+
+        return container;
+    }
+
+    /**
+     * Setup video event listeners.
+     */
+    function addVideoListeners() {
+
         var that = this;
 
-        video.addEventListener('durationchange', function() {
+        this.video.addEventListener('durationchange', function() {
+
             that.data.duration = this.duration;
         });
 
-        video.addEventListener('loadedmetadata', function() {
+        this.video.addEventListener('loadedmetadata', function() {
+
             that.data.width = this.videoWidth;
             that.data.height = this.videoHeight;
         });
 
-        video.addEventListener('progress', function() {
+        this.video.addEventListener('progress', function() {
 
-            setInterval(function () {
-                var position = video.currentTime;
-                var ranges = video.buffered;
+            that.progressTimer = setInterval(function () {
+
+                var position = that.video.currentTime;
+                var ranges = that.video.buffered;
                 var bound = 0;
 
                 for (var i = 0; i < ranges.length; i++) {
@@ -131,54 +212,52 @@ var Lecture = (function() {
             }, 200);
         });
 
-        video.addEventListener('timeupdate', function() {
+        this.video.addEventListener('timeupdate', function() {
+
             that.setPlayPosition(this.currentTime);
         });
-
-        container.appendChild(video);
-
-        var background = document.createElement('div');
-
-        background.style.top = 0;
-        background.style.width = '100%';
-        background.style.height = '100%';
-        background.style.position = 'absolute';
-        background.style['z-index'] = -1;
-        background.style.background = this.options.background_color;
-
-        container.appendChild(background);
-
-        this.video = video;
-        this.transitions = this._TransitionsTrackHTML();
-
-        var controls = this._ControlsHTML();
-        this.controls = controls;
-        container.appendChild(controls);
-
-        return container;
-    };
+    }
 
     /**
-     * Append a transitions text track to an HTML video.
-     *
-     * @return {object} new HTML TextTrack element.
+     * Append a transitions text track to the HTML video.
      */
-    Video.prototype._TransitionsTrackHTML = function() {
-
-        var src = this.options.transitions || '';
+    function createTransitionsTrack() {
 
         /* IE needs this, but Chrome and Firefox don't support it by default. */
-        if (this.video.hasOwnProperty('addTextTrack') && !src) {
+        if (this.video.addTextTrack) {
 
-            var track = this.video.addTextTrack('metadata');
-            track.mode = 'hidden';
-            return track;
+            this.transitions = this.video.addTextTrack('metadata');
+
+        } else {
+
+            var node = document.createElement('track');
+
+            node.setAttribute('kind', 'metadata');
+            node.setAttribute('src', '');
+
+            this.video.appendChild(node);
+            this.transitions = node.track;
         }
 
+        this.transitions.mode = 'hidden';
+    }
+
+    /**
+     * Add a transitions file to the video.
+     *
+     * @memberof Video
+     *
+     * @param {string} source - Transition file URI.
+     *
+     * @return {Video} This video, to allow method chaining.
+     */
+    Video.prototype.addTransitionFile = function(source) {
+
         var node = document.createElement('track');
+        var that = this;
 
         node.setAttribute('kind', 'metadata');
-        node.setAttribute('src', src);
+        node.setAttribute('src', source);
         node.addEventListener('load', function() {
 
             var cues = this.track.cues;
@@ -186,93 +265,15 @@ var Lecture = (function() {
             for (var i = 0; i < cues.length; i++) {
                 cues[i].onenter = cueEnterHandler;
                 cues[i].onexit = cueExitHandler;
-                cues[i].video = this.video;
+                cues[i].video = that.video;
             }
         });
 
         this.video.appendChild(node);
-        node.track.mode = 'hidden';
-        return node.track;
-    };
+        this.transitions = node.track;
+        this.transitions.mode = 'hidden';
 
-    /**
-     * TODO
-     */
-    Video.prototype._ControlsHTML = function() {
-
-        var container = document.createElement('div');
-
-        container.style.height = '35px';
-        container.style.background = '#1b1b1b';
-
-        var progress = document.createElement('div');
-
-        progress.style.height = '8px';
-        progress.style.background = '#444';
-        progress.style.position = 'relative';
-
-        container.appendChild(progress);
-
-        var loaded = document.createElement('div');
-
-        loaded.style.height = '100%';
-        loaded.style.width = 0;
-        loaded.style.position = 'absolute';
-        loaded.style.background = '#777';
-
-        this.setLoadPosition = function(position) {
-
-            var percentage = 100 * position / this.data.duration;
-
-            loaded.style.width = percentage + '%';
-
-            this.data.loadPosition = position;
-        };
-
-        progress.appendChild(loaded);
-
-        var bar = document.createElement('div');
-
-        bar.style.height = '100%';
-        bar.style.position = 'relative';
-        bar.style['padding-left'] = '8px';
-        bar.style['padding-right'] = '8px';
-
-        progress.appendChild(bar);
-
-        var played = document.createElement('div');
-
-        played.style.height = '100%';
-        played.style.width = 0;
-        played.style.background = '#cc181e';
-        played.style['margin-left'] = '-8px';
-        played.style['padding-left'] = '8px';
-
-        this.setPlayPosition = function(position) {
-
-            var percentage = 100 * position / this.data.duration;
-
-            played.style.width = percentage + '%';
-
-            this.data.playPosition = position;
-        };
-
-        bar.appendChild(played);
-
-        var bullet = document.createElement('div');
-
-        bullet.style.height = '6px';
-        bullet.style.width = '6px';
-        bullet.style.background = '#aeaeae';
-        bullet.style['border-radius'] = '8px';
-        bullet.style.border = '5px solid #eaeaea';
-        bullet.style.float = 'right';
-        bullet.style['margin-right'] = '-8px';
-        bullet.style['margin-top'] = '-4px';
-
-        played.appendChild(bullet);
-
-        return container;
+        return this;
     };
 
     /**
@@ -288,12 +289,8 @@ var Lecture = (function() {
     Video.prototype.addSource = function(source, type) {
 
         if (typeof type === 'undefined') {
-
-            var extension = source.match(/[a-zA-Z0-9]+$/);
-
-            for (var mime in videoMIME) {
-                if (videoMIME[mime].test(extension)) {
-                    type = mime;
+            for (type in videoMIME) {
+                if (videoMIME[type].test(source)) {
                     break;
                 }
             }
@@ -315,21 +312,16 @@ var Lecture = (function() {
      *
      * @param {string} language - Language of the subtitles (en, es, ...).
      * @param {string} source - Subtitles file URI.
-     * @param {string} [label] - User readable title.
      *
      * @return {Video} This video, to allow method chaining.
      */
-    Video.prototype.addSubtitle = function(language, source, label) {
+    Video.prototype.addSubtitle = function(language, source) {
 
         var subtitle = document.createElement('track');
 
         subtitle.setAttribute('kind', 'subtitle');
         subtitle.setAttribute('src', source);
         subtitle.setAttribute('srclang', language);
-
-        if (label) {
-            subtitle.setAttribute('label', label);
-        }
 
         this.video.appendChild(subtitle);
         return this;
@@ -375,7 +367,7 @@ var Lecture = (function() {
     /**
      * Handler for cues enter event.
      */
-    var cueEnterHandler = function() {
+    function cueEnterHandler() {
 
         this.video.currentTime = this.startTime;
 
@@ -405,7 +397,7 @@ var Lecture = (function() {
     /**
      * Handler for cues exit event.
      */
-    var cueExitHandler = function() {
+    function cueExitHandler() {
 
         var target = this.video.lecture.getComponent(this.text);
 
@@ -506,7 +498,7 @@ var Lecture = (function() {
 
         this.lecture.currentVideo = this;
         this.video.setAttribute('preload', 'auto');
-        this.container.style.display = 'block';
+        this.container.classList.add('video-show');
     };
 
     /**
@@ -523,33 +515,33 @@ var Lecture = (function() {
         this.pause();
         this.lecture.currentVideo = null;
         this.video.setAttribute('preload', 'metadata');
-        this.container.style.display = 'none';
+        this.container.classList.remove('video-show');
     };
 
     /**
      * Create an Overlay component.
      *
+     * @see Lecture#addOverlay
      * @constructor
      * @name Overlay
-     * @see Lecture#addOverlay
      *
-     * @param {string} id - Overlay id.
-     * @param {string} source - Overlay source URI.
-     * @param {object} options - Overlay configuration options.
+     * @param {Lecture} lecture - Parent lecture.
+     * @param {string}  id - Overlay unique name.
+     * @param {string}  source - Overlay source URI.
+     * @param {object}  options - Overlay configuration options.
      */
-    function Overlay(id, source, options) {
+    function Overlay(lecture, id, source, options) {
 
+        this.lecture = lecture;
         this.id = id;
         this.source = source;
         this.options = options;
-        this.container = this._OverlayHTML();
+
+        this.container = newOverlay.call(this);
         this.container.overlay = this;
-    }
 
-    function setOpacity(element, opacity) {
-
-        element.style.opacity = opacity;
-        element.style.filter = 'alpha(opacity=' + opacity + ')';
+        lecture.overlays[id] = this;
+        lecture.container.appendChild(this.container);
     }
 
     /**
@@ -557,38 +549,30 @@ var Lecture = (function() {
      *
      * @return {object} New overlay element.
      */
-    Overlay.prototype._OverlayHTML = function() {
+    function newOverlay() {
 
-        var container = document.createElement('div');
-
-        container.style.top = 0;
-        container.style.width = '100%';
-        container.style.height = '100%';
-        container.style.position = 'absolute';
-        container.style.display = 'none';
-
+        var container  = document.createElement('div');
         var background = document.createElement('div');
+        var foreground = document.createElement('iframe');
 
-        background.style.width = '100%';
-        background.style.height = '100%';
-        background.style.position = 'absolute';
-        background.style.background = this.options.background_color;
-
-        setOpacity(background, this.options.background_opacity);
+         container.classList.add('overlay-container');
+        background.classList.add('overlay-background');
+        foreground.classList.add('overlay-foreground');
 
         container.appendChild(background);
+        container.appendChild(foreground);
 
-        var foreground = document.createElement('iframe');
+        if (this.options.background) {
+            background.style.background = this.options.background;
+        }
+
+        if (this.options.opacity) {
+            background.style.opacity = this.options.opacity;
+            background.style.filter = 'alpha(opacity=' + this.options.opacity + ')';
+        }
 
         foreground.setAttribute('src', this.source);
         foreground.setAttribute('seamless', 'seamless');
-
-        foreground.style.border = 0;
-        foreground.style.width = '100%';
-        foreground.style.height = '100%';
-        foreground.style.position = 'absolute';
-
-        container.appendChild(foreground);
 
         var margin = this.options.margin;
 
@@ -665,8 +649,8 @@ var Lecture = (function() {
         }
 
         this.lecture.currentOverlays[this.id] = this;
-        this.container.style.display = 'block';
-        this.container.style['z-index'] = ++this.lecture.zIndexCount;
+        this.container.style.zIndex = ++this.lecture.zIndexCount;
+        this.container.classList.add('overlay-show');
     };
 
     /**
@@ -681,7 +665,7 @@ var Lecture = (function() {
         }
 
         delete this.lecture.currentOverlays[this.id];
-        this.container.style.display = 'none';
+        this.container.classList.remove('overlay-show');
     };
 
     /**
@@ -704,25 +688,14 @@ var Lecture = (function() {
 
         this.videos = {};
         this.overlays = {};
-        this.zIndexCount = 0;
         this.currentVideo = null;
         this.currentOverlays = {};
-        this.container = this._LectureHTML();
+
+        this.zIndexCount = 0;
+
+        this.container = document.createElement('div');
+        this.container.classList.add('lecture-container');
     }
-
-    /**
-     * TODO
-     */
-    Lecture.prototype._LectureHTML = function() {
-
-        var container = document.createElement('div');
-
-        container.style.width = 'inherit';
-        container.style.height = 'inherit';
-        container.style.position = 'absolute';
-
-        return container;
-    };
 
     /**
      * Create a Video component.
@@ -737,13 +710,12 @@ var Lecture = (function() {
      *
      * @memberof Lecture
      *
-     * @param {string}  id - Video id.
+     * @param {string}  id - Video unique name.
      * @param {object}  [options] - Video configuration options.
-     * @param {string}  [options.transitions] - Transitions file URI.
      * @param {number}  [options.startTime=0] - Video start time.
      * @param {boolean} [options.muted=false] - Whether the video is muted.
      * @param {boolean} [options.controls=true] - Whether the video controls are shown.
-     * @param {string}  [options.background_color=black] - Color of the background.
+     * @param {string}  [options.background=black] - Background color.
      *
      * @return {Video} New Video component.
      */
@@ -752,13 +724,7 @@ var Lecture = (function() {
         options = options || {};
         extend(options, this.options.video);
 
-        var video = new Video(id, options);
-
-        video.lecture = this;
-        this.videos[id] = video;
-        this.container.appendChild(video.container);
-
-        return video;
+        return new Video(lecture, id, options);
     };
 
     /**
@@ -766,16 +732,24 @@ var Lecture = (function() {
      *
      * An overlay is an HTML that's shown over the video. An overlay can be
      * used to control the flow of the lecture, or simply show something to the
-     * user in a static format.
+     * user in a static format. It has color background that can be made
+     * transparent.
+     *
+     * From an overlay, you can use the function doTransition to control the
+     * flow of the lecture.
+     *
+     * @example
+     * <input type="submit" value="Restart" onclick="doTransition({time: 0})" />
      *
      * @memberof Lecture
+     * @see Overlay#doTransition
      *
-     * @param {string} id - Overlay id.
+     * @param {string} id - Overlay unique name.
      * @param {string} source - Overlay source URI.
      * @param {object} [options] - Overlay configuration options.
      * @param {string} [options.margin=10px] - Overlay margin size.
-     * @param {number} [options.background_opacity=1] - Opacity of the background.
-     * @param {string} [options.background_color=white] - Color of the background.
+     * @param {number} [options.opacity=1] - Background opacity.
+     * @param {string} [options.background=white] - Background color.
      *
      * @return {Overlay} New Overlay component.
      */
@@ -784,13 +758,7 @@ var Lecture = (function() {
         options = options || {};
         extend(options, this.options.overlay);
 
-        var overlay = new Overlay(id, source, options);
-
-        overlay.lecture = this;
-        this.overlays[id] = overlay;
-        this.container.appendChild(overlay.container);
-
-        return overlay;
+        return new Overlay(lecture, id, source, options);
     };
 
     /**
@@ -798,21 +766,13 @@ var Lecture = (function() {
      *
      * @memberof Lecture
      *
-     * @param {string} id - Component id.
+     * @param {string} id - Component unique name.
      *
      * @return {Video|Overlay} Existing Lecture component.
      */
     Lecture.prototype.getComponent = function(id) {
 
-        if (this.videos.hasOwnProperty(id)) {
-            return this.videos[id];
-        }
-
-        if (this.overlays.hasOwnProperty(id)) {
-            return this.overlays[id];
-        }
-
-        return null;
+        return this.videos[id] || this.overlays[id] || null;
     };
 
     /**
