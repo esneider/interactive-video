@@ -71,6 +71,7 @@ var Lecture = (function() {
         createVideoContainer.call(this);
         createTransitionsTrack.call(this);
         addVideoListeners.call(this);
+        addContainerListeners.call(this);
 
         this.container.video = this;
         lecture.videos[id] = this;
@@ -97,6 +98,12 @@ var Lecture = (function() {
         if (this.options.background) {
             this.background.style.background = this.options.background;
         }
+    }
+
+    function addContainerListeners() {
+
+        this.container.addEventListener('mouseenter', this.mouseEnter);
+        this.container.addEventListener('mouseleave', this.mouseLeave);
     }
 
     /**
@@ -132,6 +139,7 @@ var Lecture = (function() {
     function newControls() {
 
         var container = document.createElement('div');
+        var controls  = document.createElement('div');
         var progress  = document.createElement('div');
         var loaded    = document.createElement('div');
         var bar       = document.createElement('div');
@@ -139,6 +147,7 @@ var Lecture = (function() {
         var bullet    = document.createElement('div');
 
         container.classList.add('controls-container');
+         controls.classList.add('controls-controls');
          progress.classList.add('controls-progress');
            loaded.classList.add('controls-loaded');
               bar.classList.add('controls-bar');
@@ -146,10 +155,13 @@ var Lecture = (function() {
            bullet.classList.add('controls-bullet');
 
         container.appendChild(progress);
+        container.appendChild(controls);
          progress.appendChild(loaded);
          progress.appendChild(bar);
               bar.appendChild(played);
            played.appendChild(bullet);
+
+        var that = this;
 
         this.setLoadPosition = function(position) {
 
@@ -167,6 +179,20 @@ var Lecture = (function() {
             played.style.width = percentage + '%';
 
             this.data.playPosition = position;
+        };
+
+        this.mouseEnter = function() {
+
+            progress.classList.remove('controls-progress-tiny');
+            bullet.classList.remove('controls-bullet-tiny');
+        };
+
+        this.mouseLeave = function() {
+
+            if (!that.video.paused) {
+                progress.classList.add('controls-progress-tiny');
+                bullet.classList.add('controls-bullet-tiny');
+            }
         };
 
         return container;
@@ -216,6 +242,8 @@ var Lecture = (function() {
 
             that.setPlayPosition(this.currentTime);
         });
+
+        this.video.addEventListener('ended', this.mouseEnter);
     }
 
     /**
@@ -478,6 +506,7 @@ var Lecture = (function() {
      */
     Video.prototype.pause = function() {
 
+        this.mouseEnter();
         this.video.pause();
     };
 
@@ -574,8 +603,6 @@ var Lecture = (function() {
         foreground.setAttribute('src', this.source);
         foreground.setAttribute('seamless', 'seamless');
 
-        var margin = this.options.margin;
-
         foreground.addEventListener('load', function() {
 
             function doTransition(options) {
@@ -584,7 +611,7 @@ var Lecture = (function() {
 
             var html = this.contentDocument.firstChild;
 
-            html.style.margin = margin;
+            html.style.margin = '15px';
 
             var script = this.contentDocument.createElement('script');
 
@@ -777,6 +804,12 @@ var Lecture = (function() {
 
     /**
      * TODO
+     *
+     * @memberof Lecture
+     *
+     * @param {string} id - Component unique name.
+     *
+     * @return {Lecture} This lecture, to allow method chaining.
      */
     Lecture.prototype.attach = function(id) {
 
