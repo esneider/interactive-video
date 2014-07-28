@@ -149,6 +149,7 @@ var Lecture = (function() {
         var container = document.createElement('div');
         var controls  = document.createElement('div');
         var progress  = document.createElement('div');
+        var padding   = document.createElement('div');
         var loaded    = document.createElement('div');
         var bar       = document.createElement('div');
         var played    = document.createElement('div');
@@ -157,11 +158,13 @@ var Lecture = (function() {
         container.classList.add('controls-container');
          controls.classList.add('controls-controls');
          progress.classList.add('controls-progress');
+            padding.classList.add('controls-padding');
            loaded.classList.add('controls-loaded');
               bar.classList.add('controls-bar');
            played.classList.add('controls-played');
            bullet.classList.add('controls-bullet');
 
+        container.appendChild(padding);
         container.appendChild(progress);
         container.appendChild(controls);
          progress.appendChild(loaded);
@@ -170,6 +173,65 @@ var Lecture = (function() {
            played.appendChild(bullet);
 
         var that = this;
+
+        function mouseDown(event) {
+
+            /* Make sure it's the left button (different in IE and the rest,
+             * thus the magic).
+             */
+            if (event.button != !event.hasOwnProperty('which')) {
+                return;
+            }
+
+            var paused = that.video.paused;
+
+            that.pause();
+            that.setVideoPosition(event.pageX);
+            bullet.classList.add('controlls-bullet-hover');
+
+            function mouseMove(event) {
+
+                if (event.button == !event.hasOwnProperty('which')) {
+                    that.setVideoPosition(event.pageX);
+                } else {
+                    mouseUp();
+                }
+            }
+
+            function mouseUp(event) {
+
+                if (event) {
+                    that.setVideoPosition(event.pageX);
+                }
+
+                bullet.classList.remove('controlls-bullet-hover');
+                window.removeEventListener('mousemove', mouseMove);
+                window.removeEventListener('mouseup', mouseUp);
+
+                if (!paused) {
+                    that.play();
+                }
+            }
+
+            window.addEventListener('mousemove', mouseMove);
+            window.addEventListener('mouseup', mouseUp);
+        }
+
+        progress.addEventListener('mousedown', mouseDown);
+         padding.addEventListener('mousedown', mouseDown);
+          bullet.addEventListener('mousedown', mouseDown);
+
+        this.setVideoPosition = function(pageX) {
+
+            var bounds = padding.getBoundingClientRect();
+            var width  = bounds.right - bounds.left;
+            var left   = bounds.left + window.pageXOffset;
+            var pos    = that.data.duration * (pageX - left) / width;
+
+            that.setPlayPosition(pos);
+            that.currentTime = pos;
+            that.video.currentTime = that.currentTime;
+        }
 
         this.setLoadPosition = function(position) {
 
@@ -182,7 +244,7 @@ var Lecture = (function() {
 
         this.setPlayPosition = function(position) {
 
-            var percentage = 100 * position / this.data.duration;
+            var percentage = 100 * Math.max(0, Math.min(1, position / this.data.duration));
 
             played.style.width = percentage + '%';
 
