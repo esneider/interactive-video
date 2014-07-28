@@ -102,8 +102,16 @@ var Lecture = (function() {
 
     function addContainerListeners() {
 
+        var that = this;
+
         this.container.addEventListener('mouseenter', this.mouseEnter);
         this.container.addEventListener('mouseleave', this.mouseLeave);
+        this.container.addEventListener('mousemove', function() {
+
+            that.mouseEnter();
+            clearInterval(that.mouseTimer);
+            that.mouseTimer = setInterval(that.mouseLeave, 3000);
+        });
     }
 
     /**
@@ -183,8 +191,12 @@ var Lecture = (function() {
 
         this.mouseEnter = function() {
 
-            progress.classList.remove('controls-progress-tiny');
-            bullet.classList.remove('controls-bullet-tiny');
+            var inactive = Object.keys(that.lecture.currentOverlays).length;
+
+            if (!that.video.paused || !inactive) {
+                progress.classList.remove('controls-progress-tiny');
+                bullet.classList.remove('controls-bullet-tiny');
+            }
         };
 
         this.mouseLeave = function() {
@@ -506,8 +518,8 @@ var Lecture = (function() {
      */
     Video.prototype.pause = function() {
 
-        this.mouseEnter();
         this.video.pause();
+        this.mouseEnter();
     };
 
     /**
@@ -678,6 +690,7 @@ var Lecture = (function() {
         this.lecture.currentOverlays[this.id] = this;
         this.container.style.zIndex = ++this.lecture.zIndexCount;
         this.container.classList.add('overlay-show');
+        this.lecture.currentVideo.mouseLeave();
     };
 
     /**
@@ -693,6 +706,7 @@ var Lecture = (function() {
 
         delete this.lecture.currentOverlays[this.id];
         this.container.classList.remove('overlay-show');
+        this.lecture.currentVideo.mouseEnter();
     };
 
     /**
