@@ -104,13 +104,13 @@ var Lecture = (function() {
 
         var that = this;
 
-        this.container.addEventListener('mouseenter', this.mouseEnter);
-        this.container.addEventListener('mouseleave', this.mouseLeave);
+        this.container.addEventListener('mouseenter', this.showFullProgress);
+        this.container.addEventListener('mouseleave', this.showTinyProgress);
         this.container.addEventListener('mousemove', function() {
 
-            that.mouseEnter();
+            that.showFullProgress();
             clearInterval(that.mouseTimer);
-            that.mouseTimer = setInterval(that.mouseLeave, 3000);
+            that.mouseTimer = setInterval(that.showTinyProgress, 3000);
         });
     }
 
@@ -154,15 +154,18 @@ var Lecture = (function() {
         var bar       = document.createElement('div');
         var played    = document.createElement('div');
         var bullet    = document.createElement('div');
+        var button    = document.createElement('div');
 
         container.classList.add('controls-container');
          controls.classList.add('controls-controls');
          progress.classList.add('controls-progress');
-            padding.classList.add('controls-padding');
+          padding.classList.add('controls-padding');
            loaded.classList.add('controls-loaded');
               bar.classList.add('controls-bar');
            played.classList.add('controls-played');
            bullet.classList.add('controls-bullet');
+           button.classList.add('controls-button');
+           button.classList.add('controls-play');
 
         container.appendChild(padding);
         container.appendChild(progress);
@@ -171,6 +174,7 @@ var Lecture = (function() {
          progress.appendChild(bar);
               bar.appendChild(played);
            played.appendChild(bullet);
+         controls.appendChild(button);
 
         var that = this;
 
@@ -235,7 +239,7 @@ var Lecture = (function() {
 
         this.setLoadPosition = function(position) {
 
-            var percentage = 100 * position / this.data.duration;
+            var percentage = 100 * Math.max(0, Math.min(1, position / this.data.duration));
 
             loaded.style.width = percentage + '%';
 
@@ -251,23 +255,42 @@ var Lecture = (function() {
             this.data.playPosition = position;
         };
 
-        this.mouseEnter = function() {
+        this.showFullProgress = function() {
 
-            var inactive = Object.keys(that.lecture.currentOverlays).length;
-
-            if (!that.video.paused || !inactive) {
+            if (!that.video.paused || !that.lecture.showingOverlay()) {
                 progress.classList.remove('controls-progress-tiny');
                 bullet.classList.remove('controls-bullet-tiny');
             }
         };
 
-        this.mouseLeave = function() {
+        this.showTinyProgress = function() {
 
             if (!that.video.paused) {
                 progress.classList.add('controls-progress-tiny');
                 bullet.classList.add('controls-bullet-tiny');
             }
         };
+
+        this.showPlayButton = function() {
+
+            button.classList.remove('controls-pause');
+            button.classList.add('controls-play');
+        };
+
+        this.showPauseButton = function() {
+
+            button.classList.remove('controls-play');
+            button.classList.add('controls-pause');
+        };
+
+        button.addEventListener('click', function() {
+
+            if (that.video.paused) {
+                that.play();
+            } else {
+                that.pause();
+            }
+        });
 
         return container;
     }
@@ -317,7 +340,7 @@ var Lecture = (function() {
             that.setPlayPosition(this.currentTime);
         });
 
-        this.video.addEventListener('ended', this.mouseEnter);
+        this.video.addEventListener('ended', this.showFullProgress);
     }
 
     /**
@@ -479,6 +502,7 @@ var Lecture = (function() {
         var play = tokens[2] !== 'stop';
 
         target.show();
+        target.fromCue = this;
 
         if (target.constructor === Video) {
 
@@ -563,13 +587,14 @@ var Lecture = (function() {
 
         this.show();
 
-        if (this.video.paused) {
+        if (this.video.paused && !this.lecture.showingOverlay()) {
 
             if (!returning) {
                 this.video.currentTime = this.currentTime;
             }
 
             this.video.play();
+            this.showPauseButton();
         }
     };
 
@@ -581,7 +606,8 @@ var Lecture = (function() {
     Video.prototype.pause = function() {
 
         this.video.pause();
-        this.mouseEnter();
+        this.showPlayButton();
+        this.showFullProgress();
     };
 
     /**
@@ -752,7 +778,7 @@ var Lecture = (function() {
         this.lecture.currentOverlays[this.id] = this;
         this.container.style.zIndex = ++this.lecture.zIndexCount;
         this.container.classList.add('overlay-show');
-        this.lecture.currentVideo.mouseLeave();
+        this.lecture.currentVideo.showTinyProgress();
     };
 
     /**
@@ -768,7 +794,7 @@ var Lecture = (function() {
 
         delete this.lecture.currentOverlays[this.id];
         this.container.classList.remove('overlay-show');
-        this.lecture.currentVideo.mouseEnter();
+        this.lecture.currentVideo.showFullProgress();
     };
 
     /**
@@ -891,6 +917,27 @@ var Lecture = (function() {
 
         document.getElementById(id).appendChild(this.container);
         return this;
+    };
+
+    /**
+     * TODO
+     *
+     * @memberof Lecture
+     *
+     * @return {boolean} TODO
+     */
+    Lecture.prototype.showingOverlay = function() {
+
+        for (var overlay in this.currentOverlays) {
+            if (this.currentOverlays.hasOwnProperty(overlay)) {
+                var cue = this.currentOverlays[overlay].fromCue;
+                if (cue && cue.startTime === cue.endTime) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     };
 
     return Lecture;
