@@ -155,6 +155,8 @@ var Lecture = (function() {
         var played    = document.createElement('div');
         var bullet    = document.createElement('div');
         var button    = document.createElement('div');
+        var volume    = document.createElement('div');
+        var speaker   = document.createElement('div');
 
         container.classList.add('controls-container');
          controls.classList.add('controls-controls');
@@ -166,6 +168,9 @@ var Lecture = (function() {
            bullet.classList.add('controls-bullet');
            button.classList.add('controls-button');
            button.classList.add('controls-play');
+           volume.classList.add('controls-volume');
+          speaker.classList.add('controls-speaker');
+          speaker.classList.add('controls-speaker-mute');
 
         container.appendChild(padding);
         container.appendChild(progress);
@@ -175,6 +180,8 @@ var Lecture = (function() {
               bar.appendChild(played);
            played.appendChild(bullet);
          controls.appendChild(button);
+         controls.appendChild(volume);
+           volume.appendChild(speaker);
 
         var that = this;
 
