@@ -271,15 +271,15 @@ var Lecture = (function() {
 
         this.setLoadPosition = function(position) {
 
-            var percentage = 100 * clamp(0, position / this.data.duration, 1);
-            loaded.style.width = percentage + '%';
+            position = clamp(0, position, this.data.duration);
+            loaded.style.width = 100 * position / this.data.duration + '%';
             this.data.loadPosition = position;
         };
 
         this.setPlayPosition = function(position) {
 
-            var percentage = 100 * clamp(0, position / this.data.duration, 1);
-            played.style.width = percentage + '%';
+            position = clamp(0, position, this.data.duration);
+            played.style.width = 100 * position / this.data.duration + '%';
             this.data.playPosition = position;
         };
 
@@ -289,6 +289,11 @@ var Lecture = (function() {
 
             paused = that.video.paused;
             that.pause();
+
+            if (!paused) {
+                that.showPauseButton();
+            }
+
             that.setVideoPosition(event.pageX);
             bullet.classList.add('controlls-progress-bullet-hover');
         }
