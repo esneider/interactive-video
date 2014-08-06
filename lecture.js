@@ -32,6 +32,20 @@ var Lecture = (function() {
     };
 
     /**
+     * Limit a number to a given range.
+     *
+     * @param {number} a - Lower bound of the range.
+     * @param {number} b - Number to clamp.
+     * @param {number} c - Upper bound of the range.
+     *
+     * @return {number} Number in the range [a, c].
+     */
+    function clamp(a, b, c) {
+
+        return Math.max(a, Math.min(b, c));
+    }
+
+    /**
      * Extend an object's properties with another's.
      *
      * @param {object} target - Target object.
@@ -46,6 +60,93 @@ var Lecture = (function() {
                 }
             }
         }
+    }
+
+    /**
+     * Create an HTML element.
+     *
+     * @param {string} type - Which element type.
+     * @param {string|string[]} [classes] - CSS classes for the new element.
+     * @param {object} [parent] - Parent HTML element.
+     *
+     * @return {object} The new element.
+     */
+    function createElement(type, classes, parent) {
+
+        var element = document.createElement(type);
+
+        if (classes) {
+
+            if (typeof classes === 'string') {
+                classes = [classes];
+            }
+
+            if (typeof classes === 'object' && classes.constructor === Array) {
+                classes.forEach(function(c) {
+                    element.classList.add(c);
+                });
+            }
+        }
+
+        if (parent) {
+            parent.appendChild(element);
+        }
+
+        return element;
+    }
+
+    /**
+     * Generate a mouseDown listener function that supports mouse movements
+     * outside the target while the mouse is down.
+     *
+     * @param {function} mouseDownFn - What to do on mouseDown.
+     * @param {function} mouseMoveFn - What to do on mouseMove.
+     * @param {function} mouseUpFn - What to do on mouseUp.
+     *
+     * @return {function} mouseDown listener.
+     */
+    function mouseDownListener(mouseDownFn, mouseMoveFn, mouseUpFn) {
+
+        var active = false;
+
+        function leftButtonPressed(event) {
+
+            return event.button == !event.hasOwnProperty('which');
+        }
+
+        function mouseDown(event) {
+
+            if (!leftButtonPressed(event) || active) {
+                return;
+            }
+
+            active = true;
+            mouseDownFn(event);
+
+            window.addEventListener('mousemove', mouseMove);
+            window.addEventListener('mouseup', mouseUp);
+        }
+
+        function mouseMove(event) {
+
+            if (!leftButtonPressed(event)) {
+                mouseUp();
+                return;
+            }
+
+            mouseMoveFn(event);
+        }
+
+        function mouseUp(event) {
+
+            window.removeEventListener('mousemove', mouseMove);
+            window.removeEventListener('mouseup', mouseUp);
+
+            active = false;
+            mouseUpFn(event);
+        }
+
+        return mouseDown;
     }
 
     /**
@@ -70,8 +171,8 @@ var Lecture = (function() {
 
         createVideoContainer.call(this);
         createTransitionsTrack.call(this);
-        addVideoListeners.call(this);
         addContainerListeners.call(this);
+        addVideoListeners.call(this);
 
         this.container.video = this;
         lecture.videos[id] = this;
@@ -83,23 +184,23 @@ var Lecture = (function() {
      */
     function createVideoContainer() {
 
-        this.container  = document.createElement('div');
+        this.container  = createElement('div', 'video-container');
         this.video      = newVideoElement.call(this);
-        this.background = document.createElement('div');
+        this.background = createElement('div', 'video-background');
         this.controls   = newControls.call(this);
 
         this.container.appendChild(this.video);
         this.container.appendChild(this.background);
         this.container.appendChild(this.controls);
 
-        this.container.classList.add('video-container');
-        this.background.classList.add('video-background');
-
         if (this.options.background) {
             this.background.style.background = this.options.background;
         }
     }
 
+    /**
+     * Add mouse listeners for the video container.
+     */
     function addContainerListeners() {
 
         var that = this;
@@ -121,9 +222,7 @@ var Lecture = (function() {
      */
     function newVideoElement() {
 
-        var video = document.createElement('video');
-
-        video.classList.add('video-video');
+        var video = createElement('video', 'video-video')
 
         video.setAttribute('preload', 'metadata');
         video.setAttribute('controls', 'controls');
@@ -140,101 +239,110 @@ var Lecture = (function() {
     }
 
     /**
+     * TODO
+     */
+    function newProgressBar() {
+
+        var container = createElement('div');
+        var padding   = createElement('div', 'controls-progress-padding', container);
+        var progress  = createElement('div', 'controls-progress',         container);
+        var loaded    = createElement('div', 'controls-progress-loaded',  progress);
+        var bar       = createElement('div', 'controls-progress-bar',     progress);
+        var played    = createElement('div', 'controls-progress-played',  bar);
+        var bullet    = createElement('div', 'controls-progress-bullet',  played);
+
+        var that = this;
+
+        this.showFullProgress = function() {
+
+            if (!that.video.paused || !that.lecture.showingOverlay()) {
+                progress.classList.remove('controls-progress-tiny');
+                bullet.classList.remove('controls-progress-bullet-tiny');
+            }
+        };
+
+        this.showTinyProgress = function() {
+
+            if (!that.video.paused) {
+                progress.classList.add('controls-progress-tiny');
+                bullet.classList.add('controls-progress-bullet-tiny');
+            }
+        };
+
+        this.setLoadPosition = function(position) {
+
+            var percentage = 100 * clamp(0, position / this.data.duration, 1);
+            loaded.style.width = percentage + '%';
+            this.data.loadPosition = position;
+        };
+
+        this.setPlayPosition = function(position) {
+
+            var percentage = 100 * clamp(0, position / this.data.duration, 1);
+            played.style.width = percentage + '%';
+            this.data.playPosition = position;
+        };
+
+        var paused;
+
+        function mouseDown(event) {
+
+            paused = that.video.paused;
+            that.pause();
+            that.setVideoPosition(event.pageX);
+            bullet.classList.add('controlls-progress-bullet-hover');
+        }
+
+        function mouseMove(event) {
+
+            that.setVideoPosition(event.pageX);
+        }
+
+        function mouseUp(event) {
+
+            if (event) {
+                that.setVideoPosition(event.pageX);
+            }
+
+            bullet.classList.remove('controlls-progress-bullet-hover');
+
+            if (!paused) {
+                that.play();
+            }
+        }
+
+        var listener = mouseDownListener(mouseDown, mouseMove, mouseUp);
+
+        progress.addEventListener('mousedown', listener);
+         padding.addEventListener('mousedown', listener);
+          bullet.addEventListener('mousedown', listener);
+
+        return container;
+    }
+
+    /**
      * Create the HTML elements for the video controls.
      *
      * @return {object} Controls container element.
      */
     function newControls() {
 
-        var container = document.createElement('div');
-        var controls  = document.createElement('div');
-        var progress  = document.createElement('div');
-        var padding   = document.createElement('div');
-        var loaded    = document.createElement('div');
-        var bar       = document.createElement('div');
-        var played    = document.createElement('div');
-        var bullet    = document.createElement('div');
-        var button    = document.createElement('div');
-        var volume    = document.createElement('div');
-        var speaker   = document.createElement('div');
+        var container = createElement('div', 'controls-container');
+        var progress  = newProgressBar.call(this);
 
-        container.classList.add('controls-container');
-         controls.classList.add('controls-controls');
-         progress.classList.add('controls-progress');
-          padding.classList.add('controls-padding');
-           loaded.classList.add('controls-loaded');
-              bar.classList.add('controls-bar');
-           played.classList.add('controls-played');
-           bullet.classList.add('controls-bullet');
-           button.classList.add('controls-button');
-           button.classList.add('controls-play');
-           volume.classList.add('controls-volume');
-          speaker.classList.add('controls-speaker');
-          speaker.classList.add('controls-speaker-mute');
-
-        container.appendChild(padding);
         container.appendChild(progress);
-        container.appendChild(controls);
-         progress.appendChild(loaded);
-         progress.appendChild(bar);
-              bar.appendChild(played);
-           played.appendChild(bullet);
-         controls.appendChild(button);
-         controls.appendChild(volume);
-           volume.appendChild(speaker);
+
+        var buttons   = createElement('div', 'controls-buttons', container);
+        var button    = createElement('div', ['controls-button', 'controls-play'], buttons);
+        var volume    = createElement('div', 'controls-volume',   buttons);
+        var speaker   = createElement('div', ['controls-volume-speaker', 'controls-volume-mute'], volume);
+        var slider    = createElement('div', 'controls-volume-slider', volume);
 
         var that = this;
 
-        function mouseDown(event) {
-
-            /* Make sure it's the left button (different in IE and the rest,
-             * thus the magic).
-             */
-            if (event.button != !event.hasOwnProperty('which')) {
-                return;
-            }
-
-            var paused = that.video.paused;
-
-            that.pause();
-            that.setVideoPosition(event.pageX);
-            bullet.classList.add('controlls-bullet-hover');
-
-            function mouseMove(event) {
-
-                if (event.button == !event.hasOwnProperty('which')) {
-                    that.setVideoPosition(event.pageX);
-                } else {
-                    mouseUp();
-                }
-            }
-
-            function mouseUp(event) {
-
-                if (event) {
-                    that.setVideoPosition(event.pageX);
-                }
-
-                bullet.classList.remove('controlls-bullet-hover');
-                window.removeEventListener('mousemove', mouseMove);
-                window.removeEventListener('mouseup', mouseUp);
-
-                if (!paused) {
-                    that.play();
-                }
-            }
-
-            window.addEventListener('mousemove', mouseMove);
-            window.addEventListener('mouseup', mouseUp);
-        }
-
-        progress.addEventListener('mousedown', mouseDown);
-         padding.addEventListener('mousedown', mouseDown);
-          bullet.addEventListener('mousedown', mouseDown);
-
         this.setVideoPosition = function(pageX) {
 
-            var bounds = padding.getBoundingClientRect();
+            var bounds = progress.getBoundingClientRect();
             var width  = bounds.right - bounds.left;
             var left   = bounds.left + window.pageXOffset;
             var pos    = that.data.duration * (pageX - left) / width;
@@ -243,40 +351,6 @@ var Lecture = (function() {
             that.currentTime = pos;
             that.video.currentTime = that.currentTime;
         }
-
-        this.setLoadPosition = function(position) {
-
-            var percentage = 100 * Math.max(0, Math.min(1, position / this.data.duration));
-
-            loaded.style.width = percentage + '%';
-
-            this.data.loadPosition = position;
-        };
-
-        this.setPlayPosition = function(position) {
-
-            var percentage = 100 * Math.max(0, Math.min(1, position / this.data.duration));
-
-            played.style.width = percentage + '%';
-
-            this.data.playPosition = position;
-        };
-
-        this.showFullProgress = function() {
-
-            if (!that.video.paused || !that.lecture.showingOverlay()) {
-                progress.classList.remove('controls-progress-tiny');
-                bullet.classList.remove('controls-bullet-tiny');
-            }
-        };
-
-        this.showTinyProgress = function() {
-
-            if (!that.video.paused) {
-                progress.classList.add('controls-progress-tiny');
-                bullet.classList.add('controls-bullet-tiny');
-            }
-        };
 
         this.showPlayButton = function() {
 
@@ -347,7 +421,10 @@ var Lecture = (function() {
             that.setPlayPosition(this.currentTime);
         });
 
-        this.video.addEventListener('ended', this.showFullProgress);
+        this.video.addEventListener('ended', function() {
+
+            that.pause();
+        });
     }
 
     /**
