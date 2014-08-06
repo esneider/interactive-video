@@ -226,6 +226,7 @@ var Lecture = (function() {
 
         video.setAttribute('preload', 'metadata');
         video.setAttribute('controls', 'controls');
+        video.setAttribute('tabindex', -1);
 
         if (this.options.muted) {
             video.setAttribute('muted', 'muted');
@@ -343,6 +344,8 @@ var Lecture = (function() {
         var speaker   = createElement('div', ['controls-volume-speaker', 'controls-volume-mute'], volume);
         var slider    = createElement('div', 'controls-volume-slider', volume);
 
+        button.setAttribute('tabindex', 0);
+
         var that = this;
 
         this.setVideoPosition = function(pageX) {
@@ -369,12 +372,22 @@ var Lecture = (function() {
             button.classList.add('controls-pause');
         };
 
-        button.addEventListener('click', function() {
+        function togglePlayPauseButton() {
 
             if (that.video.paused) {
                 that.play();
             } else {
                 that.pause();
+            }
+        };
+
+        button.addEventListener('click', togglePlayPauseButton);
+        button.addEventListener('keypress', function(event) {
+
+            var code = event.charCode || event.keyCode || event.which;
+
+            if (code == 13 || code == 32) {
+                togglePlayPauseButton();
             }
         });
 
