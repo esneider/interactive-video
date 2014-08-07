@@ -10,8 +10,8 @@
         var lecture = new Lecture().attach('lecture');
         var overlay = lecture.addOverlay('test', 'test.html', {opacity: 0.7});
         var video   = lecture.addVideo('colors')
-                             .addSource('assets/colors.mp4')
-                             .addSource('assets/colors.webm');
+                             .addSource('http://www.inserthtml.com/demo/html5-video/movie.mp4')
+                             .addSource('http://www.inserthtml.com/demo/html5-video/movie.webm');
 
         video.addTransition(overlay, 6);
         video.show();
