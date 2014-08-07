@@ -111,7 +111,15 @@ var Lecture = (function() {
 
         function leftButtonPressed(event) {
 
-            return event.button == !event.hasOwnProperty('which');
+            if ('buttons' in event) {
+                return event.buttons === 1;
+            }
+
+            if ('which' in event) {
+                return event.which === 1;
+            }
+
+            return event.button === 1;
         }
 
         function mouseDown(event) {
@@ -184,6 +192,8 @@ var Lecture = (function() {
      */
     function createVideoContainer() {
 
+        /* jshint validthis: true */
+
         this.container  = createElement('div', 'video-container');
         this.video      = newVideoElement.call(this);
         this.background = createElement('div', 'video-background');
@@ -202,6 +212,8 @@ var Lecture = (function() {
      * Add mouse listeners for the video container.
      */
     function addContainerListeners() {
+
+        /* jshint validthis: true */
 
         var that = this;
 
@@ -222,7 +234,9 @@ var Lecture = (function() {
      */
     function newVideoElement() {
 
-        var video = createElement('video', 'video-video')
+        /* jshint validthis: true */
+
+        var video = createElement('video', 'video-video');
 
         video.setAttribute('preload', 'metadata');
         video.setAttribute('controls', 'controls');
@@ -243,6 +257,8 @@ var Lecture = (function() {
      * TODO
      */
     function newProgressBar() {
+
+        /* jshint validthis: true */
 
         var container = createElement('div');
         var padding   = createElement('div', 'controls-progress-padding', container);
@@ -272,16 +288,16 @@ var Lecture = (function() {
 
         this.setLoadPosition = function(position) {
 
-            position = clamp(0, position, this.data.duration);
-            loaded.style.width = 100 * position / this.data.duration + '%';
-            this.data.loadPosition = position;
+            position = clamp(0, position, that.data.duration);
+            loaded.style.width = 100 * position / that.data.duration + '%';
+            that.data.loadPosition = position;
         };
 
         this.setPlayPosition = function(position) {
 
-            position = clamp(0, position, this.data.duration);
-            played.style.width = 100 * position / this.data.duration + '%';
-            this.data.playPosition = position;
+            position = clamp(0, position, that.data.duration);
+            played.style.width = 100 * position / that.data.duration + '%';
+            that.data.playPosition = position;
         };
 
         var paused;
@@ -333,6 +349,8 @@ var Lecture = (function() {
      */
     function newControls() {
 
+        /* jshint validthis: true */
+
         var container = createElement('div', 'controls-container');
         var progress  = newProgressBar.call(this);
 
@@ -358,7 +376,7 @@ var Lecture = (function() {
             that.setPlayPosition(pos);
             that.currentTime = pos;
             that.video.currentTime = that.currentTime;
-        }
+        };
 
         this.showPlayButton = function() {
 
@@ -372,7 +390,7 @@ var Lecture = (function() {
             button.classList.add('controls-pause');
         };
 
-        function togglePlayPauseButton() {
+        this.togglePlayPauseButton = function() {
 
             if (that.video.paused) {
                 that.play();
@@ -381,13 +399,13 @@ var Lecture = (function() {
             }
         };
 
-        button.addEventListener('click', togglePlayPauseButton);
+        button.addEventListener('click', this.togglePlayPauseButton);
         button.addEventListener('keypress', function(event) {
 
             var code = event.charCode || event.keyCode || event.which;
 
             if (code == 13 || code == 32) {
-                togglePlayPauseButton();
+                that.togglePlayPauseButton();
             }
         });
 
@@ -399,7 +417,11 @@ var Lecture = (function() {
      */
     function addVideoListeners() {
 
+        /* jshint validthis: true */
+
         var that = this;
+
+        this.video.addEventListener('click', this.togglePlayPauseButton);
 
         this.video.addEventListener('durationchange', function() {
 
@@ -449,6 +471,8 @@ var Lecture = (function() {
      * Append a transitions text track to the HTML video.
      */
     function createTransitionsTrack() {
+
+        /* jshint validthis: true */
 
         /* IE needs this, but Chrome and Firefox don't support it by default. */
         if (this.video.addTextTrack) {
@@ -596,6 +620,8 @@ var Lecture = (function() {
      */
     function cueEnterHandler() {
 
+        /* jshint validthis: true */
+
         this.video.currentTime = this.startTime;
 
         var tokens = this.text.split(' ');
@@ -620,19 +646,21 @@ var Lecture = (function() {
         if (target.constructor === Overlay && this.startTime === this.endTime) {
             this.video.pause();
         }
-    };
+    }
 
     /**
      * Handler for cues exit event.
      */
     function cueExitHandler() {
 
+        /* jshint validthis: true */
+
         var target = this.video.lecture.getComponent(this.text);
 
         if (target.constructor === Overlay && this.startTime !== this.endTime) {
             target.hide();
         }
-    };
+    }
 
     /**
      * Add a transition to another component.
@@ -649,6 +677,8 @@ var Lecture = (function() {
      * @return {Video} This video, to allow method chaining.
      */
     Video.prototype.addTransition = function(target, time, options) {
+
+        /* jshint -W056 */
 
         options = options || {};
 
@@ -782,6 +812,8 @@ var Lecture = (function() {
      */
     function newOverlay() {
 
+        /* jshint validthis: true */
+
         var container  = document.createElement('div');
         var background = document.createElement('div');
         var foreground = document.createElement('iframe');
@@ -824,7 +856,7 @@ var Lecture = (function() {
         });
 
         return container;
-    };
+    }
 
     /**
      * TODO
