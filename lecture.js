@@ -678,8 +678,6 @@ var Lecture = (function() {
      */
     Video.prototype.addTransition = function(target, time, options) {
 
-        /* jshint -W056 */
-
         options = options || {};
 
         var until = time + (options.duration || 0);
@@ -693,7 +691,8 @@ var Lecture = (function() {
             text += ' stop';
         }
 
-        var cue = new (VTTCue || TextTrackCue)(time, until, text);
+        var Cue = window.VTTCue || window.TextTrackCue;
+        var cue = new Cue(time, until, text);
 
         cue.onenter = cueEnterHandler;
         cue.onexit = cueExitHandler;
