@@ -111,12 +111,7 @@
             transition: all 0.1s linear;
 }
 
-.controls-progress-bullet:hover {
-    background: #cc181e;
-    cursor: pointer;
-}
-
-.controlls-progress-bullet-hover {
+.controls-progress-bullet:hover, .controlls-progress-bullet-hover {
     background: #cc181e;
     cursor: pointer;
 }
@@ -139,6 +134,43 @@
     width: 55px;
     height: 27px;
     cursor: pointer;
+}
+
+.controls-button:focus {
+    outline: 1px dotted #999;
+}
+
+.controls-button::after {
+    content: '';
+    position: absolute;
+    left: 22px;
+    top: 6px;
+    -webkit-transition: border-color 0.1s linear;
+       -moz-transition: border-color 0.1s linear;
+        -ms-transition: border-color 0.1s linear;
+         -o-transition: border-color 0.1s linear;
+            transition: border-color 0.1s linear;
+}
+
+.controls-button:hover::after, .controls-button:focus::after {
+    border-left-color: #838383;
+    border-right-color: #838383;
+}
+
+.controls-play::after {
+    width: 0;
+    height: 0;
+    border-top: 7px solid transparent;
+    border-left: 14px solid #626262;
+    border-bottom: 7px solid transparent;
+}
+
+.controls-pause::after {
+    width: 3px;
+    height: 14px;
+    background: transparent;
+    border-left: 5px solid #626262;
+    border-right: 5px solid #626262;
 }
 
 .controls-volume {
@@ -286,39 +318,6 @@
 
 .controls-volume-slider {
 
-}
-
-.controls-button::after {
-    content: '';
-    position: absolute;
-    left: 22px;
-    top: 6px;
-    -webkit-transition: border-color 0.1s linear;
-       -moz-transition: border-color 0.1s linear;
-        -ms-transition: border-color 0.1s linear;
-         -o-transition: border-color 0.1s linear;
-            transition: border-color 0.1s linear;
-}
-
-.controls-button:hover::after {
-    border-left-color: #838383;
-    border-right-color: #838383;
-}
-
-.controls-play::after {
-    width: 0;
-    height: 0;
-    border-top: 7px solid transparent;
-    border-left: 14px solid #626262;
-    border-bottom: 7px solid transparent;
-}
-
-.controls-pause::after {
-    width: 3px;
-    height: 14px;
-    background: transparent;
-    border-left: 5px solid #626262;
-    border-right: 5px solid #626262;
 }
 
 .video-show {
