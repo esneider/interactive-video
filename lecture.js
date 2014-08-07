@@ -239,7 +239,6 @@ var Lecture = (function() {
         var video = createElement('video', 'video-video');
 
         video.setAttribute('preload', 'metadata');
-        video.setAttribute('controls', 'controls');
         video.setAttribute('tabindex', -1);
 
         if (this.options.muted) {
@@ -356,11 +355,11 @@ var Lecture = (function() {
 
         container.appendChild(progress);
 
-        var buttons   = createElement('div', 'controls-buttons', container);
-        var button    = createElement('div', ['controls-button', 'controls-play'], buttons);
-        var volume    = createElement('div', 'controls-volume',   buttons);
-        var speaker   = createElement('div', ['controls-volume-speaker', 'controls-volume-mute'], volume);
-        var slider    = createElement('div', 'controls-volume-slider', volume);
+        var buttons = createElement('div', 'controls-buttons', container);
+        var button  = createElement('div', ['controls-button', 'controls-play'], buttons);
+        var volume  = createElement('div', 'controls-volume',   buttons);
+        var speaker = createElement('div', ['controls-volume-speaker', 'controls-volume-mute'], volume);
+        var slider  = createElement('div', 'controls-volume-slider', volume);
 
         button.setAttribute('tabindex', 0);
 
