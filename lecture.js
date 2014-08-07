@@ -269,6 +269,23 @@ var Lecture = (function() {
 
         var that = this;
 
+        this.deferredCueMarkers = [];
+
+        this.addCueMarker = function(position) {
+
+            if (!that.data.duration) {
+                this.deferredCueMarkers.push(position);
+                return;
+            }
+
+            var container = createElement('div', 'controls-progress-cue-container', progress);
+            var padding   = createElement('div', 'controls-progress-cue-padding',   container);
+            var marker    = createElement('div', 'controls-progress-cue-marker',    padding);
+
+            position = clamp(0, position, that.data.duration);
+            marker.style.width = 100 * position / that.data.duration + '%';
+        };
+
         this.showFullProgress = function() {
 
             if (!that.video.paused || !that.lecture.showingOverlay()) {
@@ -372,7 +389,6 @@ var Lecture = (function() {
             var left   = bounds.left + window.pageXOffset;
             var pos    = that.data.duration * (pageX - left) / width;
 
-            that.setPlayPosition(pos);
             that.currentTime = pos;
             that.video.currentTime = that.currentTime;
         };
@@ -425,6 +441,7 @@ var Lecture = (function() {
         this.video.addEventListener('durationchange', function() {
 
             that.data.duration = this.duration;
+            that.deferredCueMarkers.forEach(that.addCueMarker);
         });
 
         this.video.addEventListener('loadedmetadata', function() {
@@ -516,6 +533,8 @@ var Lecture = (function() {
                 cues[i].onenter = cueEnterHandler;
                 cues[i].onexit = cueExitHandler;
                 cues[i].video = that.video;
+
+                that.addCueMarker(cues[i].startTime);
             }
         });
 
@@ -621,29 +640,34 @@ var Lecture = (function() {
 
         /* jshint validthis: true */
 
-        this.video.currentTime = this.startTime;
-
         var tokens = this.text.split(' ');
         var target = this.video.lecture.getComponent(tokens[0]);
-        var time = tokens[1] && parseSeconds(tokens[1]);
-        var play = tokens[2] !== 'stop';
 
         target.show();
         target.fromCue = this;
 
         if (target.constructor === Video) {
 
+            var time = tokens[1] && parseSeconds(tokens[1]);
+            var play = tokens[2] !== 'stop';
+
             if (typeof time === "number") {
                 target.currentTime = time;
+                target.video.currentTime = time;
             }
 
             if (play) {
                 target.play();
             }
+
+            this.video.currentTime = this.startTime;
+            // this.video.video.currentTime = this.startTime;
         }
 
         if (target.constructor === Overlay && this.startTime === this.endTime) {
             this.video.pause();
+            this.video.currentTime = this.startTime;
+            // this.video.video.currentTime = this.startTime;
         }
     }
 
@@ -701,6 +725,7 @@ var Lecture = (function() {
         Lecture.cues = Lecture.cues || [];
         Lecture.cues.push(cue);
 
+        this.addCueMarker(time);
         this.transitions.addCue(cue);
 
         return this;
