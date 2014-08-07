@@ -145,11 +145,6 @@
     position: absolute;
     left: 22px;
     top: 6px;
-    -webkit-transition: border-color 0.1s linear;
-       -moz-transition: border-color 0.1s linear;
-        -ms-transition: border-color 0.1s linear;
-         -o-transition: border-color 0.1s linear;
-            transition: border-color 0.1s linear;
 }
 
 .controls-button:hover::after, .controls-button:focus::after {
