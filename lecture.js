@@ -8,7 +8,6 @@ var Lecture = (function() {
     var defaultOptions = {
         video: {
             controls: true,
-            startTime: 0,
             muted: false,
         },
         overlay: {
@@ -60,6 +59,62 @@ var Lecture = (function() {
                 }
             }
         }
+    }
+
+    /**
+     * Parse a time string that has one of the following formats:
+     * - hh:mm:ss(.xx)?
+     * - mm:ss(.xx)?
+     * - ss(.xx)?
+     * - .xx
+     *
+     * Where hh, mm, ss and xx are hours, minutes, seconds and
+     * second decimals. hh, mm, ss and xx can have any number of
+     * digits (at least one though).
+     *
+     * @param {string} str - Input string to parse.
+     *
+     * @return {number} Amount of seconds represented by str.
+     */
+    function parseSeconds(str) {
+
+        var pattern = /^(\d+:)?(\d+:)?(\d*\.?\d*)$/;
+        var tokens = str.match(pattern);
+
+        if (!tokens) {
+            return undefined;
+        }
+
+        tokens = tokens.map(parseFloat);
+
+        if (isNaN(tokens[1])) {
+            return tokens[3];
+        }
+
+        if (isNaN(tokens[2])) {
+            return tokens[3] + 60 * tokens[1];
+        }
+
+        return tokens[3] + 60 * tokens[2] + 3600 * tokens[1];
+    }
+
+    /**
+     * Format an amount of seconds as (hh:)?mm:ss
+     *
+     * @param {number} time - Number of seconds.
+     *
+     * @return {string} Formatted string.
+     */
+    function formatSeconds(time) {
+
+        var roundTime = Math.floor(time);
+        var hours     = Math.floor(roundTime / 3600);
+        var minutes   = Math.floor(roundTime / 60) % 60;
+        var seconds   = roundTime % 60;
+        var hourSep   = minutes < 10 ? ':0' : ':';
+        var minuteSep = seconds < 10 ? ':0' : ':';
+
+        return (hours ? hours + hourSep : '') + minutes + minuteSep + seconds;
     }
 
     /**
@@ -175,7 +230,7 @@ var Lecture = (function() {
         this.options = options;
 
         this.data = {};
-        this.currentTime = options.startTime;
+        this.currentTime = 0;
 
         createVideoContainer.call(this);
         createTransitionsTrack.call(this);
@@ -328,7 +383,7 @@ var Lecture = (function() {
             }
 
             that.setVideoPosition(event.pageX);
-            bullet.classList.add('controlls-progress-bullet-hover');
+            bullet.classList.add('controls-progress-bullet-hover');
         }
 
         function mouseMove(event) {
@@ -342,7 +397,7 @@ var Lecture = (function() {
                 that.setVideoPosition(event.pageX);
             }
 
-            bullet.classList.remove('controlls-progress-bullet-hover');
+            bullet.classList.remove('controls-progress-bullet-hover');
 
             if (!paused) {
                 that.play();
@@ -378,9 +433,28 @@ var Lecture = (function() {
         var speaker = createElement('div', ['controls-volume-speaker', 'controls-volume-mute'], volume);
         var slider  = createElement('div', 'controls-volume-slider', volume);
 
+        var time      = createElement('div', 'controls-time', buttons);
+        var current   = createElement('span', 'controls-time-current', time);
+        var separator = createElement('span', [], time);
+        var duration  = createElement('span', [], time);
+
         button.setAttribute('tabindex', 0);
 
+          current.appendChild(document.createTextNode('0:00'));
+        separator.appendChild(document.createTextNode(' / '));
+         duration.appendChild(document.createTextNode('0:00'));
+
         var that = this;
+
+        this.setCurrentTime = function(time) {
+
+            current.firstChild.nodeValue = formatSeconds(time);
+        };
+
+        this.setDurationTime = function(time) {
+
+            duration.firstChild.nodeValue = formatSeconds(time);
+        };
 
         this.setVideoPosition = function(pageX) {
 
@@ -390,7 +464,8 @@ var Lecture = (function() {
             var pos    = that.data.duration * (pageX - left) / width;
 
             that.currentTime = pos;
-            that.video.currentTime = that.currentTime;
+            that.setCurrentTime(pos);
+            that.video.currentTime = pos;
         };
 
         this.showPlayButton = function() {
@@ -441,6 +516,7 @@ var Lecture = (function() {
         this.video.addEventListener('durationchange', function() {
 
             that.data.duration = this.duration;
+            that.setDurationTime(this.duration);
             that.deferredCueMarkers.forEach(that.addCueMarker);
         });
 
@@ -475,6 +551,7 @@ var Lecture = (function() {
         this.video.addEventListener('timeupdate', function() {
 
             that.setPlayPosition(this.currentTime);
+            that.setCurrentTime(this.currentTime);
         });
 
         this.video.addEventListener('ended', function() {
@@ -597,43 +674,6 @@ var Lecture = (function() {
     };
 
     /**
-     * Parse a time string that has one of the following formats:
-     * - hh:mm:ss(.xx)?
-     * - mm:ss(.xx)?
-     * - ss(.xx)?
-     * - .xx
-     *
-     * Where hh, mm, ss and xx are hours, minutes, seconds and
-     * second decimals. hh, mm, ss and xx can have any number of
-     * digits (at least one though).
-     *
-     * @param {string} str - Input string to parse.
-     *
-     * @return {number} Amount of seconds represented by str.
-     */
-    function parseSeconds(str) {
-
-        var pattern = /^(\d+:)?(\d+:)?(\d*\.?\d*)$/;
-        var tokens = str.match(pattern);
-
-        if (!tokens) {
-            return undefined;
-        }
-
-        tokens = tokens.map(parseFloat);
-
-        if (isNaN(tokens[1])) {
-            return tokens[3];
-        }
-
-        if (isNaN(tokens[2])) {
-            return tokens[3] + 60 * tokens[1];
-        }
-
-        return tokens[3] + 60 * tokens[2] + 3600 * tokens[1];
-    }
-
-    /**
      * Handler for cues enter event.
      */
     function cueEnterHandler() {
@@ -653,6 +693,7 @@ var Lecture = (function() {
 
             if (typeof time === "number") {
                 target.currentTime = time;
+                target.setCurrentTime(time);
                 target.video.currentTime = time;
             }
 
@@ -661,12 +702,14 @@ var Lecture = (function() {
             }
 
             this.video.currentTime = this.startTime;
+            this.video.setCurrentTime(this.startTime);
             // this.video.video.currentTime = this.startTime;
         }
 
         if (target.constructor === Overlay && this.startTime === this.endTime) {
             this.video.pause();
             this.video.currentTime = this.startTime;
+            this.video.setCurrentTime(this.startTime);
             // this.video.video.currentTime = this.startTime;
         }
     }
@@ -765,6 +808,7 @@ var Lecture = (function() {
         this.showFullProgress();
 
         this.currentTime = this.video.currentTime;
+        this.setCurrentTime(this.currentTime);
     };
 
     /**
@@ -1000,7 +1044,6 @@ var Lecture = (function() {
      *
      * @param {string}  id - Video unique name.
      * @param {object}  [options] - Video configuration options.
-     * @param {number}  [options.startTime=0] - Video start time.
      * @param {boolean} [options.muted=false] - Whether the video is muted.
      * @param {boolean} [options.controls=true] - Whether the video controls are shown.
      * @param {string}  [options.background=black] - Background color.
