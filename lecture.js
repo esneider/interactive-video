@@ -740,6 +740,8 @@ var Lecture = (function() {
         this.video.pause();
         this.showPlayButton();
         this.showFullProgress();
+
+        this.currentTime = this.video.currentTime;
     };
 
     /**
