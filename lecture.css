@@ -114,7 +114,8 @@
             transition: all 0.1s linear;
 }
 
-.controls-progress-bullet:hover, .controls-progress-bullet-hover {
+.controls-progress-bullet:hover,
+.controls-progress-bullet-hover {
     background: #cc181e;
     cursor: pointer;
 }
@@ -170,7 +171,8 @@
     top: 6px;
 }
 
-.controls-playpause-button:hover::after, .controls-playpause-button:focus::after {
+.controls-playpause-button:hover::after,
+.controls-playpause-button:focus::after {
     border-left-color: #838383;
     border-right-color: #838383;
 }
@@ -186,7 +188,6 @@
 .controls-pause-button::after {
     width: 3px;
     height: 14px;
-    /* background: transparent; */
     border-left: 5px solid #626262;
     border-right: 5px solid #626262;
 }
@@ -198,6 +199,10 @@
     cursor: pointer;
     float: left;
     padding-right: 4px;
+}
+
+.controls-volume:focus {
+    outline: 1px dotted #999;
 }
 
 .controls-volume::before {
@@ -214,7 +219,8 @@
             transition: border-color 0.1s linear;
 }
 
-.controls-volume:hover::before {
+.controls-volume:hover::before,
+.controls-volume:focus::before {
     border-color: #838383;
 }
 
@@ -232,7 +238,8 @@
             transition: border-color 0.1s linear;
 }
 
-.controls-volume:hover::after {
+.controls-volume:hover::after,
+.controls-volume:focus::after {
     border-right-color: #838383;
 }
 
@@ -309,7 +316,8 @@
             transform: rotate(45deg);
 }
 
-.controls-volume:hover > .controls-volume-speaker::before {
+.controls-volume:hover > .controls-volume-speaker::before,
+.controls-volume:focus > .controls-volume-speaker::before {
     border-color: #838383;
 }
 
@@ -332,7 +340,8 @@
             transform: rotate(-45deg);
 }
 
-.controls-volume:hover > .controls-volume-speaker::after {
+.controls-volume:hover > .controls-volume-speaker::after,
+.controls-volume:focus > .controls-volume-speaker::after {
     border-color: #838383;
 }
 
@@ -343,26 +352,25 @@
     height: 100%;
     overflow: hidden;
     cursor: pointer;
-    -webkit-transition: width 0.6s linear;
-       -moz-transition: width 0.6s linear;
-        -ms-transition: width 0.6s linear;
-         -o-transition: width 0.6s linear;
-            transition: width 0.6s linear;
+    -webkit-transition: width 0.4s linear;
+       -moz-transition: width 0.4s linear;
+        -ms-transition: width 0.4s linear;
+         -o-transition: width 0.4s linear;
+            transition: width 0.4s linear;
 }
 
-.controls-volume:hover > .controls-volume-slider-outer {
+.controls-volume:hover > .controls-volume-slider-outer,
+.controls-volume:focus > .controls-volume-slider-outer {
     width: 61px;
-    -webkit-transition: width 0.05s linear;
-       -moz-transition: width 0.05s linear;
-        -ms-transition: width 0.05s linear;
-         -o-transition: width 0.05s linear;
-            transition: width 0.05s linear;
+    -webkit-transition: width 0.03s linear;
+       -moz-transition: width 0.03s linear;
+        -ms-transition: width 0.03s linear;
+         -o-transition: width 0.03s linear;
+            transition: width 0.03s linear;
 }
 
 .controls-volume-slider-middle {
-    margin-left: 1px;
-    margin-right: 6px;
-    padding-right: 5px;
+    margin-right: 5px;
 }
 
 .controls-volume-slider-inner {
@@ -410,7 +418,7 @@
     float: left;
 }
 
-.controls-time-current {
+.controls-time > span:first-child {
     color: #fff;
 }
 
