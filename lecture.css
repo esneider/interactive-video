@@ -220,6 +220,7 @@
 }
 
 .controls-volume:hover::before,
+.controls-volume-hover::before,
 .controls-volume:focus::before {
     border-color: #838383;
 }
@@ -239,6 +240,7 @@
 }
 
 .controls-volume:hover::after,
+.controls-volume-hover::after,
 .controls-volume:focus::after {
     border-right-color: #838383;
 }
@@ -317,6 +319,7 @@
 }
 
 .controls-volume:hover > .controls-volume-speaker::before,
+.controls-volume-hover > .controls-volume-speaker::before,
 .controls-volume:focus > .controls-volume-speaker::before {
     border-color: #838383;
 }
@@ -341,6 +344,7 @@
 }
 
 .controls-volume:hover > .controls-volume-speaker::after,
+.controls-volume-hover > .controls-volume-speaker::after,
 .controls-volume:focus > .controls-volume-speaker::after {
     border-color: #838383;
 }
@@ -352,14 +356,15 @@
     height: 100%;
     overflow: hidden;
     cursor: pointer;
-    -webkit-transition: width 0.4s linear;
-       -moz-transition: width 0.4s linear;
-        -ms-transition: width 0.4s linear;
-         -o-transition: width 0.4s linear;
-            transition: width 0.4s linear;
+    -webkit-transition: width 0.4s linear 0.2s;
+       -moz-transition: width 0.4s linear 0.2s;
+        -ms-transition: width 0.4s linear 0.2s;
+         -o-transition: width 0.4s linear 0.2s;
+            transition: width 0.4s linear 0.2s;
 }
 
 .controls-volume:hover > .controls-volume-slider-outer,
+.controls-volume-hover > .controls-volume-slider-outer,
 .controls-volume:focus > .controls-volume-slider-outer {
     width: 54px;
     -webkit-transition: width 0.03s linear;
