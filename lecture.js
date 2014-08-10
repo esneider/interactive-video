@@ -258,6 +258,9 @@ var Lecture = (function() {
         this.name = name;
         this.options = options;
 
+        this.internal = {};
+        this.internal.deferredOverlayMarkers = [];
+
         this.data = {};
         this.data.duration = 0;
         this.data.currentTime = 0;
@@ -267,7 +270,6 @@ var Lecture = (function() {
         addVideoContainerListeners(this);
 
         createVideoElement(this);
-        createTransitionsTrack(this);
         createVideoControls(this);
 
         lecture.container.appendChild(this.container);
@@ -280,13 +282,13 @@ var Lecture = (function() {
      */
     function addVideoContainerListeners(video) {
 
-        video.container.addEventListener('mouseenter', video.showFullProgressBar);
-        video.container.addEventListener('mouseleave', video.showTinyProgressBar);
+        video.container.addEventListener('mouseenter', video.internal.showFullProgressBar);
+        video.container.addEventListener('mouseleave', video.internal.showTinyProgressBar);
         video.container.addEventListener('mousemove', function() {
 
-            video.showFullProgressBar();
-            clearInterval(video.mouseTimer);
-            video.mouseTimer = setInterval(video.showTinyProgressBar, 3000);
+            video.internal.showFullProgressBar();
+            clearInterval(video.internal.mouseTimer);
+            video.internal.mouseTimer = setInterval(video.internal.showTinyProgressBar, 3000);
         });
     }
 
@@ -299,17 +301,18 @@ var Lecture = (function() {
 
         video.video = createElement('video', 'video-element', video.container);
 
+        video.video.muted = video.options.muted;
+        video.video.preload = 'metadata';
+        video.video.setAttribute('tabindex', -1);
+
         video.video.appendChild(document.createTextNode(
             'Sorry, your browser doesn\'t support HTML5 video.'
         ));
 
-        video.video.setAttribute('preload', 'metadata');
-        video.video.setAttribute('tabindex', -1);
-        video.video.muted = video.options.muted;
+        addVideoElementListeners(video);
 
         createElement('div', 'video-background', video.container);
-
-        addVideoElementListeners(video);
+        createTransitionsTrack(video);
     }
 
     /**
@@ -326,49 +329,38 @@ var Lecture = (function() {
 
         video.video.addEventListener('durationchange', function() {
 
-            video.data.duration = this.duration;
-            video.setDurationTime(this.duration);
-            video.deferredOverlayMarkers.forEach(video.addOverlayMarker);
+            video.internal.setControlsDurationTime(this.duration);
+            video.internal.deferredOverlayMarkers.forEach(video.internal.addOverlayMarker);
+            video.internal.deferredOverlayMarkers = [];
         });
 
         video.video.addEventListener('loadedmetadata', function() {
 
-            video.data.width = this.videoWidth;
-            video.data.height = this.videoHeight;
+            video.data.originalWidth = this.videoWidth;
+            video.data.originalHeight = this.videoHeight;
         });
 
         video.video.addEventListener('progress', function() {
 
-            // TODO: explain this
+            clearInterval(video.internal.progressTimer);
+            video.internal.progressTimer = setInterval(function () {
 
-            video.progressTimer = setInterval(function () {
-
-                var position = video.video.currentTime;
                 var ranges = video.video.buffered;
-                var bound = 0;
+                var duration = video.data.duration;
 
-                for (var i = 0; i < ranges.length; i++) {
+                if (ranges.length) {
+                    video.internal.setProgressLoadPosition(ranges.end(0));
 
-                    var start = ranges.start(i);
-                    var end = ranges.end(i);
-
-                    if (start <= position && position <= end && end > bound) {
-                        bound = end;
+                    if (duration && duration <= ranges.end(0)) {
+                        clearInterval(video.internal.progressTimer);
                     }
-                }
-
-                video.setProgressLoadPosition(bound);
-
-                if (video.data.duration && video.data.duration <= bound) {
-                    clearInterval(video.progressTimer);
                 }
             }, 100);
         });
 
         video.video.addEventListener('timeupdate', function() {
 
-            video.setProgressPlayPosition(this.currentTime);
-            video.setCurrentTime(this.currentTime);
+            video.internal.setProgressPlayPosition(this.currentTime);
         });
 
         video.video.addEventListener('ended', function() {
@@ -378,7 +370,7 @@ var Lecture = (function() {
 
         video.video.addEventListener('volumechange', function(event) {
 
-            video.setVolumeSlider(video.getVolume());
+            video.internal.setVolumeSlider(video.getVolume());
         });
     }
 
@@ -401,6 +393,7 @@ var Lecture = (function() {
 
         video.transitions = addTextTrack.call(video.video, 'metadata');
         video.transitions.mode = 'hidden';
+        video.transitions.video = video;
     }
 
     /**
@@ -438,12 +431,10 @@ var Lecture = (function() {
         var played   = createElement('div', 'controls-progress-played',  bar);
         var bullet   = createElement('div', 'controls-progress-bullet',  played);
 
-        video.deferredOverlayMarkers = [];
-
-        video.addOverlayMarker = function(position) {
+        video.internal.addOverlayMarker = function(position) {
 
             if (!video.data.duration) {
-                video.deferredOverlayMarkers.push(position);
+                video.internal.deferredOverlayMarkers.push(position);
                 return;
             }
 
@@ -455,34 +446,35 @@ var Lecture = (function() {
             marker.style.width = 100 * position / video.data.duration + '%';
         };
 
-        video.showFullProgressBar = function() {
+        video.internal.showFullProgressBar = function() {
 
-            if (!video.video.paused || !video.lecture.showingOverlay()) {
-                progress.classList.remove('controls-progress-tiny');
+            if (!video.lecture.showingOverlay()) {
                 bullet.classList.remove('controls-progress-bullet-tiny');
+                progress.classList.remove('controls-progress-tiny');
             }
         };
 
-        video.showTinyProgressBar = function() {
+        video.internal.showTinyProgressBar = function() {
 
             if (!video.video.paused) {
-                progress.classList.add('controls-progress-tiny');
                 bullet.classList.add('controls-progress-bullet-tiny');
+                progress.classList.add('controls-progress-tiny');
             }
         };
 
-        video.setProgressLoadPosition = function(position) {
+        video.internal.setProgressLoadPosition = function(position) {
 
             position = clamp(0, position, video.data.duration);
             loaded.style.width = 100 * position / video.data.duration + '%';
             video.data.loadPosition = position;
         };
 
-        video.setProgressPlayPosition = function(position) {
+        video.internal.setProgressPlayPosition = function(position) {
 
             position = clamp(0, position, video.data.duration);
             played.style.width = 100 * position / video.data.duration + '%';
             video.data.playPosition = position;
+            video.internal.setControlsPlayTime(position);
         };
 
         var listener = getProgressBarListener(video, controls, bullet);
@@ -501,20 +493,17 @@ var Lecture = (function() {
      */
     function getProgressBarListener(video, controls, bullet) {
 
-        // TODO: explain this
-
-        var paused;
+        var playing;
         var position;
         var timer;
 
-        function setVideoPosition(pageX, notVideo) {
+        function setVideoPosition(pageX, onlyUI) {
 
             var rel = getRelativeMousePosition(pageX, 0, controls);
             var pos = video.data.duration * rel.x;
 
-            if (notVideo) {
-                video.setProgressPlayPosition(pos);
-                video.setCurrentTime(pos);
+            if (onlyUI) {
+                video.internal.setProgressPlayPosition(pos);
             } else {
                 video.setPosition(pos);
             }
@@ -522,11 +511,11 @@ var Lecture = (function() {
 
         function mouseDown(event) {
 
-            paused = video.video.paused;
+            playing = !video.video.paused;
 
-            if (!paused) {
+            if (playing) {
                 video.pause();
-                video.showVideoPauseButton();
+                video.internal.showVideoPauseButton();
             }
 
             position = event.pageX;
@@ -546,15 +535,11 @@ var Lecture = (function() {
 
         function mouseUp(event) {
 
-            if (event) {
-                position = event.pageX;
-            }
-
             clearInterval(timer);
-            setVideoPosition(position);
+            setVideoPosition(event ? event.pageX : position);
             bullet.classList.remove('controls-progress-bullet-hover');
 
-            if (!paused) {
+            if (playing) {
                 video.play();
             }
         }
@@ -574,13 +559,13 @@ var Lecture = (function() {
 
         button.setAttribute('tabindex', 0);
 
-        video.showVideoPlayButton = function() {
+        video.internal.showVideoPlayButton = function() {
 
             button.classList.remove('controls-pause-button');
             button.classList.add('controls-play-button');
         };
 
-        video.showVideoPauseButton = function() {
+        video.internal.showVideoPauseButton = function() {
 
             button.classList.remove('controls-play-button');
             button.classList.add('controls-pause-button');
@@ -625,10 +610,9 @@ var Lecture = (function() {
 
         volume.setAttribute('tabindex', 0);
 
-        video.setVolumeSlider = function(value) {
+        video.internal.setVolumeSlider = function(value) {
 
             value = clamp(0, value, 1);
-
             slider.style.left = 100 * value + '%';
 
             speaker.classList.remove('controls-volume-mute');
@@ -646,7 +630,7 @@ var Lecture = (function() {
             }
         };
 
-        video.setVolumeSlider(video.getVolume());
+        video.internal.setVolumeSlider(video.getVolume());
 
         addVideoVolumeListeners(video, volume, outer);
     }
@@ -660,7 +644,7 @@ var Lecture = (function() {
      */
     function addVideoVolumeListeners(video, volume, slider) {
 
-        var clickSpeaker = false;
+        var click = false;
 
         volume.addEventListener('mousedown', function(event) {
 
@@ -668,12 +652,12 @@ var Lecture = (function() {
             event.preventDefault();
 
             var rel = getRelativeMousePosition(event.pageX, 0, slider);
-            clickSpeaker = rel.x === 0;
+            click = rel.x === 0;
         });
 
         volume.addEventListener('mouseup', function(event) {
 
-            if (clickSpeaker) {
+            if (click) {
                 video.toggleVolume();
             }
         });
@@ -683,19 +667,16 @@ var Lecture = (function() {
             var code = event.charCode || event.keyCode || event.which;
 
             switch (code) {
-
                 /* Toggle on enter or space. */
                 case 13:
                 case 32:
                     video.toggleVolume();
                     break;
-
                 /* Increase volume on up or right. */
                 case 38:
                 case 39:
                     video.setVolume(video.getVolume() + 0.05);
                     break;
-
                 /* Decrease volume on left or down. */
                 case 37:
                 case 40:
@@ -741,19 +722,38 @@ var Lecture = (function() {
         separator.appendChild(document.createTextNode(' / '));
          duration.appendChild(document.createTextNode('0:00'));
 
-        video.setCurrentTime = function(time) {
+        video.internal.setControlsPlayTime = function(time) {
 
-            current.firstChild.nodeValue = formatSeconds(clamp(0, time, video.data.duration));
+            time = clamp(0, time, video.data.duration);
+            current.firstChild.nodeValue = formatSeconds(time);
         };
 
-        video.setDurationTime = function(time) {
+        video.internal.setControlsDurationTime = function(time) {
 
-            duration.firstChild.nodeValue = formatSeconds(clamp(0, time, Infinity));
+            video.data.duration = clamp(0, time, Infinity);
+            duration.firstChild.nodeValue = formatSeconds(video.data.duration);
         };
     }
 
     /**
-     * Add a transitions file to the video.
+     * Add a WebVTT transitions file to this video.
+     *
+     * A transitions file has one or more transitions defined as follows:
+     *
+     * <pre>
+     * {from-time} --> {to-time}
+     * {target-name} {target-start-time}? pause?
+     * </pre>
+     *
+     * {from-time} and {to-time} should always be the same, the time in the
+     * video at which the transition will occur, except in the case where the
+     * target is an Overlay and the video should keep playing, showing the
+     * overlay from {form-time} to {to-time}.
+     *
+     * If the target is a Video, {target-start-time} is the starting time of
+     * the video (if not set, continues from the target's last position) and,
+     * if present, pause indicates that the target video should be paused (if
+     * not set, the target video will start playing after the transition).
      *
      * @memberof Video
      *
@@ -776,20 +776,75 @@ var Lecture = (function() {
             for (var i = 0; i < cues.length; i++) {
                 cues[i].onenter = cueEnterHandler;
                 cues[i].onexit = cueExitHandler;
-                cues[i].video = that.video;
 
-                that.addCueMarker(cues[i].startTime);
+                if (this.startTime === this.endTime) {
+                    that.internal.addOverlayMarker(cues[i].startTime);
+                }
             }
         });
 
         this.transitions = node.track;
         this.transitions.mode = 'hidden';
+        this.transitions.video = this;
 
         return this;
     };
 
     /**
-     * Add a video source for a given video format/encoding.
+     * Handler for cues enter event.
+     */
+    function cueEnterHandler() {
+
+        /* jshint validthis: true */
+
+        var source = this.track.video;
+        var tokens = this.text.split(' ');
+        var target = source.lecture.getComponent(tokens[0]);
+
+        target.show();
+
+        if (target.constructor === Video) {
+
+            var time  = tokens[1] && parseSeconds(tokens[1]);
+            var pause = tokens[1] === 'pause' || tokens[2] === 'pause';
+
+            if (typeof time === "number") {
+                target.setPosition(time);
+            }
+
+            if (!pause) {
+                target.play();
+            }
+
+            source.setPosition(this.startTime + 0.00001);
+        }
+
+        if (target.constructor === Overlay && this.startTime === this.endTime) {
+            source.pause();
+            source.setPosition(this.startTime + 0.00001);
+        }
+    }
+
+    /**
+     * Handler for cues exit event.
+     */
+    function cueExitHandler() {
+
+        /* jshint validthis: true */
+
+        var source = this.track.video;
+        var tokens = this.text.split(' ');
+        var target = source.lecture.getComponent(tokens[0]);
+
+        if (target.constructor === Overlay && this.startTime !== this.endTime) {
+            target.hide();
+        }
+    }
+
+    /**
+     * Add a video source. Use this method to provide several video
+     * formats/encodings. At least the mp4 and webm formats should be availa
+     * for the video to play in all major browsers.
      *
      * @memberof Video
      *
@@ -798,7 +853,7 @@ var Lecture = (function() {
      *
      * @return {Video} This video, to allow method chaining.
      */
-    Video.prototype.addSource = function(source, type) {
+    Video.prototype.addVideoSource = function(source, type) {
 
         if (typeof type === 'undefined') {
             for (type in videoMIME) {
@@ -838,65 +893,6 @@ var Lecture = (function() {
     };
 
     /**
-     * Handler for cues enter event.
-     */
-    function cueEnterHandler() {
-
-        // TODO: fix this.
-
-        /* jshint validthis: true */
-
-        var tokens = this.text.split(' ');
-        var target = this.video.lecture.getComponent(tokens[0]);
-
-        target.show();
-        target.fromCue = this;
-
-        if (target.constructor === Video) {
-
-            var time = tokens[1] && parseSeconds(tokens[1]);
-            var play = tokens[2] !== 'stop';
-
-            if (typeof time === "number") {
-                target.currentTime = time;
-                target.setCurrentTime(time);
-                target.video.currentTime = time;
-            }
-
-            if (play) {
-                target.play();
-            }
-
-            this.video.currentTime = this.startTime;
-            this.video.setCurrentTime(this.startTime);
-            // this.video.video.currentTime = this.startTime;
-        }
-
-        if (target.constructor === Overlay && this.startTime === this.endTime) {
-            this.video.pause();
-            this.video.currentTime = this.startTime;
-            this.video.setCurrentTime(this.startTime);
-            // this.video.video.currentTime = this.startTime;
-        }
-    }
-
-    /**
-     * Handler for cues exit event.
-     */
-    function cueExitHandler() {
-
-        // TODO: fix this.
-
-        /* jshint validthis: true */
-
-        var target = this.video.lecture.getComponent(this.text);
-
-        if (target.constructor === Overlay && this.startTime !== this.endTime) {
-            target.hide();
-        }
-    }
-
-    /**
      * Add a transition to another component.
      *
      * @memberof Video
@@ -923,7 +919,7 @@ var Lecture = (function() {
         }
 
         if (!options.play) {
-            text += ' stop';
+            text += ' pause';
         }
 
         var Cue = window.VTTCue || window.TextTrackCue;
@@ -931,14 +927,16 @@ var Lecture = (function() {
 
         cue.onenter = cueEnterHandler;
         cue.onexit = cueExitHandler;
-        cue.video = this;
 
         /* Cues have to be reachable (for some reason) to work in Chrome. */
         Lecture.cues = Lecture.cues || [];
         Lecture.cues.push(cue);
 
-        this.addOverlayMarker(time);
         this.transitions.addCue(cue);
+
+        if (!options.duration) {
+            this.internal.addOverlayMarker(time);
+        }
 
         return this;
     };
@@ -1013,21 +1011,14 @@ var Lecture = (function() {
      * Start video reproduction.
      *
      * @memberof Video
-     *
-     * @param {boolean} [returning=false] - Whether we are returning from an overlay.
      */
-    Video.prototype.play = function(returning) {
+    Video.prototype.play = function() {
 
         this.show();
 
         if (this.video.paused && !this.lecture.showingOverlay()) {
-
-            if (!returning) {
-                this.setPosition(this.data.currentTime);
-            }
-
             this.video.play();
-            this.showVideoPauseButton();
+            this.internal.showVideoPauseButton();
         }
     };
 
@@ -1039,9 +1030,9 @@ var Lecture = (function() {
     Video.prototype.pause = function() {
 
         this.video.pause();
-        this.showVideoPlayButton();
-        this.showFullProgressBar();
-        this.setPosition(this.video.currentTime);
+        this.internal.showVideoPlayButton();
+        this.internal.showFullProgressBar();
+        this.data.currentTime = this.video.currentTime;
     };
 
     /**
@@ -1060,7 +1051,7 @@ var Lecture = (function() {
         }
 
         this.lecture.currentVideo = this;
-        this.video.setAttribute('preload', 'auto');
+        this.video.preload = 'auto';
         this.container.classList.add('video-show');
     };
 
@@ -1077,7 +1068,7 @@ var Lecture = (function() {
 
         this.pause();
         this.lecture.currentVideo = null;
-        this.video.setAttribute('preload', 'metadata');
+        this.video.preload = 'metadata';
         this.container.classList.remove('video-show');
     };
 
@@ -1167,22 +1158,19 @@ var Lecture = (function() {
 
         target.show();
 
-        if (target.constructor === Video) {
-            if (typeof options.time !== 'undefined') {
-                target.setPosition(options.time);
-            }
-        }
-
         if (options.hide) {
             this.hide();
         }
 
-        if (!options.stop) {
-            // TODO: remove this hack
-            var returning = target === this.lecture.currentVideo &&
-                            options.time === target.data.currentTime;
+        if (target.constructor === Video) {
 
-            target.play(returning);
+            if (typeof options.time !== 'undefined') {
+                target.setPosition(options.time);
+            }
+
+            if (options.play) {
+                target.play();
+            }
         }
     };
 
@@ -1200,7 +1188,7 @@ var Lecture = (function() {
         this.lecture.currentOverlays[this.name] = this;
         this.container.style.zIndex = ++this.lecture.zIndexCount;
         this.container.classList.add('overlay-show');
-        this.lecture.currentVideo.showTinyProgressBar();
+        this.lecture.currentVideo.internal.showTinyProgressBar();
     };
 
     /**
@@ -1216,7 +1204,7 @@ var Lecture = (function() {
 
         delete this.lecture.currentOverlays[this.name];
         this.container.classList.remove('overlay-show');
-        this.lecture.currentVideo.showFullProgressBar();
+        this.lecture.currentVideo.internal.showFullProgressBar();
     };
 
     /**
@@ -1356,19 +1344,8 @@ var Lecture = (function() {
      */
     Lecture.prototype.showingOverlay = function() {
 
-        for (var overlay in this.currentOverlays) {
-
-            if (this.currentOverlays.hasOwnProperty(overlay)) {
-
-                var cue = this.currentOverlays[overlay].fromCue;
-
-                if (cue && cue.startTime === cue.endTime) {
-                    return true;
-                }
-            }
-        }
-
-        return false;
+        return this.currentOverlays.length >
+               this.currentVideo.transitions.activeCues.length;
     };
 
     return Lecture;
