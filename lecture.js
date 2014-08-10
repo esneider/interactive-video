@@ -147,6 +147,7 @@ var Lecture = (function() {
         }
 
         if (typeof classes === 'object' && classes.constructor !== Array) {
+            /* No classes given. */
             parent = classes;
         }
 
@@ -220,6 +221,25 @@ var Lecture = (function() {
     }
 
     /**
+     * Compute the mouse position relative to a container.
+     *
+     * @param {number} pageX - Horizontal coordinate of the mouse event.
+     * @param {number} pageY - Vertical coordinate of the mouse event.
+     * @param {object} container - The HTML container.
+     *
+     * @return {{x: number, y: number}} The relative positions.
+     */
+    function getRelativeMousePosition(pageX, pageY, container) {
+
+        var bounds = container.getBoundingClientRect();
+
+        return {
+            x: clamp(0, (pageX - bounds.left - window.pageXOffset) / bounds.width,  1),
+            y: clamp(0, (pageY - bounds.top  - window.pageYOffset) / bounds.height, 1),
+        };
+    }
+
+    /**
      * Create a Video component.
      *
      * @see Lecture#addVideo
@@ -239,7 +259,9 @@ var Lecture = (function() {
         this.options = options;
 
         this.data = {};
+        this.data.duration = 0;
         this.data.currentTime = 0;
+
         this.container = createElement('div', 'video-container');
         this.container.video = this;
 
@@ -273,7 +295,7 @@ var Lecture = (function() {
             video.video.setAttribute('muted', 'muted');
         }
 
-        video.background = createElement('div', 'video-background', video.container);
+        createElement('div', 'video-background', video.container);
     }
 
     /**
@@ -283,21 +305,17 @@ var Lecture = (function() {
      */
     function createTransitionsTrack(video) {
 
-        /* IE needs this, but Chrome and Firefox don't support it by default. */
-        if (video.video.addTextTrack) {
-
-            video.transitions = video.video.addTextTrack('metadata');
-
-        } else {
+        var addTextTrack = video.video.addTextTrack || function(kind) {
 
             var node = createElement('track', video.video);
 
-            node.setAttribute('kind', 'metadata');
-            node.setAttribute('src', '');
+            node.setAttribute('kind', kind);
+            node.setAttribute('source', '');
 
-            video.transitions = node.track;
-        }
+            return node.track;
+        };
 
+        video.transitions = addTextTrack.call(video.video, 'metadata');
         video.transitions.mode = 'hidden';
     }
 
@@ -347,7 +365,7 @@ var Lecture = (function() {
 
             var container = createElement('div', 'controls-progress-overlay-marker-container', progress);
             var padding   = createElement('div', 'controls-progress-overlay-marker-padding',   container);
-            var marker    = createElement('div', 'controls-progress-overlay-marker',    padding);
+            var marker    = createElement('div', 'controls-progress-overlay-marker',           padding);
 
             position = clamp(0, position, video.data.duration);
             marker.style.width = 100 * position / video.data.duration + '%';
@@ -399,6 +417,8 @@ var Lecture = (function() {
      */
     function getProgressBarListener(video, controls, bullet) {
 
+        // TODO: explain this
+
         var paused;
         var position;
         var timer;
@@ -406,10 +426,8 @@ var Lecture = (function() {
 
         function setVideoPosition(pageX, notVideo) {
 
-            var bounds = controls.getBoundingClientRect();
-            var width  = bounds.right - bounds.left;
-            var left   = bounds.left + window.pageXOffset;
-            var pos    = video.data.duration * (pageX - left) / width;
+            var rel = getRelativeMousePosition(pageX, 0, controls);
+            var pos = video.data.duration * rel.x;
 
             if (notVideo) {
                 video.setProgressPlayPosition(pos);
@@ -432,7 +450,7 @@ var Lecture = (function() {
             timer = setInterval(function() {
                 clearTimeout(timeout);
                 setVideoPosition(position);
-            }, 200);
+            }, 300);
 
             setVideoPosition(event.pageX);
             bullet.classList.add('controls-progress-bullet-hover');
@@ -493,15 +511,22 @@ var Lecture = (function() {
             button.classList.add('controls-pause-button');
         };
 
+        button.addEventListener('mousedown', function(event) {
+
+            /* Avoid gaining focus on mouse down. */
+            event.preventDefault();
+        });
+
         button.addEventListener('click', function() {
 
             video.toggle();
         });
 
-        button.addEventListener('keypress', function(event) {
+        button.addEventListener('keydown', function(event) {
 
             var code = event.charCode || event.keyCode || event.which;
 
+            /* Toggle on enter or space. */
             if (code == 13 || code == 32) {
                 video.toggle();
             }
@@ -517,13 +542,108 @@ var Lecture = (function() {
     function createVideoVolumeButton(video, controls) {
 
         var volume  = createElement('div', 'controls-volume', controls);
-        var speaker = createElement('div', ['controls-volume-speaker', 'controls-volume-mute'], volume);
+        var speaker = createElement('div', 'controls-volume-speaker', volume);
         var outer   = createElement('div', 'controls-volume-slider-outer', volume);
         var middle  = createElement('div', 'controls-volume-slider-middle', outer);
         var inner   = createElement('div', 'controls-volume-slider-inner', middle);
         var slider  = createElement('div', 'controls-volume-slider', inner);
 
-        // TODO: slider and speaker events
+        volume.setAttribute('tabindex', 0);
+
+        video.setVolume = function(value) {
+
+            value = clamp(0, value, 1);
+
+            slider.style.left = 100 * value + '%';
+
+            speaker.classList.remove('controls-volume-mute');
+            speaker.classList.remove('controls-volume-low');
+            speaker.classList.remove('controls-volume-high');
+
+            if (value == 0) {
+                speaker.classList.add('controls-volume-mute');
+            }
+            if (value > 0.2) {
+                speaker.classList.add('controls-volume-low');
+            }
+            if (value > 0.6) {
+                speaker.classList.add('controls-volume-high');
+            }
+
+            video.video.volume = value;
+        };
+
+        video.getVolume = function() {
+
+            return video.video.volume;
+        };
+
+        var current = video.getVolume();
+        var last = current == 0 ? 1 : 0;
+
+        video.toggleVolume = function() {
+
+            var current = video.getVolume();
+            video.setVolume(last);
+            last = current;
+        };
+
+        video.setVolume(current);
+
+        addVideoVolumeListeners(video, volume, outer);
+    }
+
+    /**
+     * Add mouse listeners for the volume controls.
+     *
+     * @param {Video} video - Parent Video.
+     * @param {object} volume - HTML element for the volume container.
+     * @param {object} slider - HTML element for the volume slider container.
+     */
+    function addVideoVolumeListeners(video, volume, slider) {
+
+        volume.addEventListener('mousedown', function(event) {
+
+            /* Avoid gaining focus on mouse down. */
+            event.preventDefault();
+
+            if (getRelativeMousePosition(event.pageX, 0, slider).x == 0) {
+                video.toggleVolume();
+            }
+        });
+
+        volume.addEventListener('keydown', function(event) {
+
+            var code = event.charCode || event.keyCode || event.which;
+
+            switch (code) {
+
+                /* Toggle on enter or space. */
+                case 13:
+                case 32:
+                    video.toggleVolume();
+                    break;
+
+                /* Increase volume on up or right. */
+                case 38:
+                case 39:
+                    video.setVolume(video.getVolume() + 0.05);
+                    break;
+
+                /* Decrease volume on left or down. */
+                case 37:
+                case 40:
+                    video.setVolume(video.getVolume() - 0.05);
+                    break;
+            }
+        });
+
+        function mouseOp(event) {
+
+            video.setVolume(getRelativeMousePosition(event.pageX, 0, slider).x);
+        }
+
+        slider.addEventListener('mousedown', mouseDownHandler(mouseOp, mouseOp, mouseOp));
     }
 
     /**
@@ -535,7 +655,7 @@ var Lecture = (function() {
     function createVideoTimeIndicator(video, controls) {
 
         var time      = createElement('div', 'controls-time', controls);
-        var current   = createElement('span', 'controls-time-current', time);
+        var current   = createElement('span', time);
         var separator = createElement('span', time);
         var duration  = createElement('span', time);
 
@@ -545,12 +665,12 @@ var Lecture = (function() {
 
         video.setCurrentTime = function(time) {
 
-            current.firstChild.nodeValue = formatSeconds(time);
+            current.firstChild.nodeValue = formatSeconds(clamp(0, time, video.data.duration));
         };
 
         video.setDurationTime = function(time) {
 
-            duration.firstChild.nodeValue = formatSeconds(time);
+            duration.firstChild.nodeValue = formatSeconds(clamp(0, time, Infinity));
         };
     }
 
@@ -580,6 +700,8 @@ var Lecture = (function() {
 
         video.video.addEventListener('click', function() {
 
+            // TODO: visual indicators
+
             video.toggle();
         });
 
@@ -597,6 +719,8 @@ var Lecture = (function() {
         });
 
         video.video.addEventListener('progress', function() {
+
+            // TODO: explain this
 
             video.progressTimer = setInterval(function () {
 
@@ -619,7 +743,7 @@ var Lecture = (function() {
                 if (video.data.duration && video.data.duration <= bound) {
                     clearInterval(video.progressTimer);
                 }
-            }, 200);
+            }, 100);
         });
 
         video.video.addEventListener('timeupdate', function() {
@@ -650,6 +774,7 @@ var Lecture = (function() {
 
         node.setAttribute('kind', 'metadata');
         node.setAttribute('src', source);
+
         node.addEventListener('load', function() {
 
             var cues = this.track.cues;
@@ -814,7 +939,7 @@ var Lecture = (function() {
         cue.onexit = cueExitHandler;
         cue.video = this;
 
-        /* Needed due to a Chrome bug. */
+        /* Cues have to be reachable (for some reason) to work in Chrome. */
         Lecture.cues = Lecture.cues || [];
         Lecture.cues.push(cue);
 
@@ -994,8 +1119,8 @@ var Lecture = (function() {
      * @memberof Overlay
      *
      * @param {object}  [options] - Overlay transition configuration options.
-     * @param {object}  [options.target=last_video] - Target component.
-     * @param {number}  [options.time=target.currentTime] - Target video position.
+     * @param {object}  [options.target] - Target component (default is last video).
+     * @param {number}  [options.time] - Target video position (default is target's last position).
      * @param {boolean} [options.play=true] - Whether to start playing the target Video.
      * @param {boolean} [options.hide=true] - Whether to hide the current Overlay.
      */
@@ -1003,18 +1128,16 @@ var Lecture = (function() {
 
         options = options || {};
         extend(options, this.options.transition);
+        extend(options, {target: this.lecture.currentVideo.name});
 
-        options.target = options.target || this.lecture.currentVideo.name;
-
-        var target    = this.lecture.getComponent(options.target);
-        var time      = options.time || target.data.currentTime;
-        var returning = target === this.lecture.currentVideo &&
-                        time   === target.data.currentTime;
+        var target = this.lecture.getComponent(options.target);
 
         target.show();
 
         if (target.constructor === Video) {
-            target.data.currentTime = time;
+            if (typeof options.time !== 'undefined') {
+                target.setPosition(options.time);
+            }
         }
 
         if (options.hide) {
@@ -1022,6 +1145,10 @@ var Lecture = (function() {
         }
 
         if (!options.stop) {
+            // TODO: remove this hack
+            var returning = target === this.lecture.currentVideo &&
+                            options.time === target.data.currentTime;
+
             target.play(returning);
         }
     };
