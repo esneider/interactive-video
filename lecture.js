@@ -221,6 +221,25 @@ var Lecture = (function() {
     }
 
     /**
+     * Compute the mouse position relative to a container.
+     *
+     * @param {number} pageX - Horizontal coordinate of the mouse event.
+     * @param {number} pageY - Vertical coordinate of the mouse event.
+     * @param {object} container - The HTML container.
+     *
+     * @return {{x: number, y: number}} The relative positions.
+     */
+    function getRelativeMousePosition(pageX, pageY, container) {
+
+        var bounds = container.getBoundingClientRect();
+
+        return {
+            x: clamp(0, (pageX - bounds.left - window.pageXOffset) / bounds.width,  1),
+            y: clamp(0, (pageY - bounds.top  - window.pageYOffset) / bounds.height, 1),
+        };
+    }
+
+    /**
      * Create a Video component.
      *
      * @see Lecture#addVideo
@@ -407,10 +426,8 @@ var Lecture = (function() {
 
         function setVideoPosition(pageX, notVideo) {
 
-            var bounds = controls.getBoundingClientRect();
-            var width  = bounds.right - bounds.left;
-            var left   = bounds.left + window.pageXOffset;
-            var pos    = video.data.duration * (pageX - left) / width;
+            var rel = getRelativeMousePosition(pageX, 0, controls);
+            var pos = video.data.duration * rel.x;
 
             if (notVideo) {
                 video.setProgressPlayPosition(pos);
@@ -433,7 +450,7 @@ var Lecture = (function() {
             timer = setInterval(function() {
                 clearTimeout(timeout);
                 setVideoPosition(position);
-            }, 200);
+            }, 300);
 
             setVideoPosition(event.pageX);
             bullet.classList.add('controls-progress-bullet-hover');
@@ -505,7 +522,7 @@ var Lecture = (function() {
             video.toggle();
         });
 
-        button.addEventListener('keypress', function(event) {
+        button.addEventListener('keydown', function(event) {
 
             var code = event.charCode || event.keyCode || event.which;
 
@@ -533,7 +550,100 @@ var Lecture = (function() {
 
         volume.setAttribute('tabindex', 0);
 
-        // TODO: slider and speaker events
+        video.setVolume = function(value) {
+
+            value = clamp(0, value, 1);
+
+            slider.style.left = 100 * value + '%';
+
+            speaker.classList.remove('controls-volume-mute');
+            speaker.classList.remove('controls-volume-low');
+            speaker.classList.remove('controls-volume-high');
+
+            if (value == 0) {
+                speaker.classList.add('controls-volume-mute');
+            }
+            if (value > 0.2) {
+                speaker.classList.add('controls-volume-low');
+            }
+            if (value > 0.6) {
+                speaker.classList.add('controls-volume-high');
+            }
+
+            video.video.volume = value;
+        };
+
+        video.getVolume = function() {
+
+            return video.video.volume;
+        };
+
+        var current = video.getVolume();
+        var last = current == 0 ? 1 : 0;
+
+        video.toggleVolume = function() {
+
+            var current = video.getVolume();
+            video.setVolume(last);
+            last = current;
+        };
+
+        video.setVolume(current);
+
+        addVideoVolumeListeners(video, volume, outer);
+    }
+
+    /**
+     * Add mouse listeners for the volume controls.
+     *
+     * @param {Video} video - Parent Video.
+     * @param {object} volume - HTML element for the volume container.
+     * @param {object} slider - HTML element for the volume slider container.
+     */
+    function addVideoVolumeListeners(video, volume, slider) {
+
+        volume.addEventListener('mousedown', function(event) {
+
+            /* Avoid gaining focus on mouse down. */
+            event.preventDefault();
+
+            if (getRelativeMousePosition(event.pageX, 0, slider).x == 0) {
+                video.toggleVolume();
+            }
+        });
+
+        volume.addEventListener('keydown', function(event) {
+
+            var code = event.charCode || event.keyCode || event.which;
+
+            switch (code) {
+
+                /* Toggle on enter or space. */
+                case 13:
+                case 32:
+                    video.toggleVolume();
+                    break;
+
+                /* Increase volume on up or right. */
+                case 38:
+                case 39:
+                    video.setVolume(video.getVolume() + 0.05);
+                    break;
+
+                /* Decrease volume on left or down. */
+                case 37:
+                case 40:
+                    video.setVolume(video.getVolume() - 0.05);
+                    break;
+            }
+        });
+
+        function mouseOp(event) {
+
+            video.setVolume(getRelativeMousePosition(event.pageX, 0, slider).x);
+        }
+
+        slider.addEventListener('mousedown', mouseDownHandler(mouseOp, mouseOp, mouseOp));
     }
 
     /**
