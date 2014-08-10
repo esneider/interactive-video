@@ -264,15 +264,30 @@ var Lecture = (function() {
 
         this.container = createElement('div', 'video-container');
         this.container.video = this;
+        addVideoContainerListeners(this);
 
         createVideoElement(this);
         createTransitionsTrack(this);
         createVideoControls(this);
 
-        addVideoContainerListeners(this);
-        addVideoElementListeners(this);
-
         lecture.container.appendChild(this.container);
+    }
+
+    /**
+     * Add mouse listeners for the Video container.
+     *
+     * @param {Video} video - Parent Video.
+     */
+    function addVideoContainerListeners(video) {
+
+        video.container.addEventListener('mouseenter', video.showFullProgressBar);
+        video.container.addEventListener('mouseleave', video.showTinyProgressBar);
+        video.container.addEventListener('mousemove', function() {
+
+            video.showFullProgressBar();
+            clearInterval(video.mouseTimer);
+            video.mouseTimer = setInterval(video.showTinyProgressBar, 3000);
+        });
     }
 
     /**
@@ -290,12 +305,81 @@ var Lecture = (function() {
 
         video.video.setAttribute('preload', 'metadata');
         video.video.setAttribute('tabindex', -1);
-
-        if (video.options.muted) {
-            video.video.setAttribute('muted', 'muted');
-        }
+        video.video.muted = video.options.muted;
 
         createElement('div', 'video-background', video.container);
+
+        addVideoElementListeners(video);
+    }
+
+    /**
+     * Setup HTML video event listeners.
+     *
+     * @param {Video} video - Parent Video.
+     */
+    function addVideoElementListeners(video) {
+
+        video.video.addEventListener('click', function() {
+
+            video.toggle();
+        });
+
+        video.video.addEventListener('durationchange', function() {
+
+            video.data.duration = this.duration;
+            video.setDurationTime(this.duration);
+            video.deferredOverlayMarkers.forEach(video.addOverlayMarker);
+        });
+
+        video.video.addEventListener('loadedmetadata', function() {
+
+            video.data.width = this.videoWidth;
+            video.data.height = this.videoHeight;
+        });
+
+        video.video.addEventListener('progress', function() {
+
+            // TODO: explain this
+
+            video.progressTimer = setInterval(function () {
+
+                var position = video.video.currentTime;
+                var ranges = video.video.buffered;
+                var bound = 0;
+
+                for (var i = 0; i < ranges.length; i++) {
+
+                    var start = ranges.start(i);
+                    var end = ranges.end(i);
+
+                    if (start <= position && position <= end && end > bound) {
+                        bound = end;
+                    }
+                }
+
+                video.setProgressLoadPosition(bound);
+
+                if (video.data.duration && video.data.duration <= bound) {
+                    clearInterval(video.progressTimer);
+                }
+            }, 100);
+        });
+
+        video.video.addEventListener('timeupdate', function() {
+
+            video.setProgressPlayPosition(this.currentTime);
+            video.setCurrentTime(this.currentTime);
+        });
+
+        video.video.addEventListener('ended', function() {
+
+            video.pause();
+        });
+
+        video.video.addEventListener('volumechange', function(event) {
+
+            video.setVolumeSlider(video.getVolume());
+        });
     }
 
     /**
@@ -422,7 +506,6 @@ var Lecture = (function() {
         var paused;
         var position;
         var timer;
-        var timeout;
 
         function setVideoPosition(pageX, notVideo) {
 
@@ -448,9 +531,8 @@ var Lecture = (function() {
 
             position = event.pageX;
             timer = setInterval(function() {
-                clearTimeout(timeout);
                 setVideoPosition(position);
-            }, 300);
+            }, 20);
 
             setVideoPosition(event.pageX);
             bullet.classList.add('controls-progress-bullet-hover');
@@ -460,22 +542,15 @@ var Lecture = (function() {
 
             position = event.pageX;
             setVideoPosition(position, true);
-
-            clearTimeout(timeout);
-            timeout = setTimeout(function() {
-                setVideoPosition(position);
-            }, 50);
         }
 
         function mouseUp(event) {
-
-            clearTimeout(timeout);
-            clearInterval(timer);
 
             if (event) {
                 position = event.pageX;
             }
 
+            clearInterval(timer);
             setVideoPosition(position);
             bullet.classList.remove('controls-progress-bullet-hover');
 
@@ -550,8 +625,6 @@ var Lecture = (function() {
 
         volume.setAttribute('tabindex', 0);
 
-        addVideoVolumeListeners(video, volume, outer);
-
         video.setVolumeSlider = function(value) {
 
             value = clamp(0, value, 1);
@@ -574,6 +647,8 @@ var Lecture = (function() {
         };
 
         video.setVolumeSlider(video.getVolume());
+
+        addVideoVolumeListeners(video, volume, outer);
     }
 
     /**
@@ -675,95 +750,6 @@ var Lecture = (function() {
 
             duration.firstChild.nodeValue = formatSeconds(clamp(0, time, Infinity));
         };
-    }
-
-    /**
-     * Add mouse listeners for the Video container.
-     *
-     * @param {Video} video - Parent Video.
-     */
-    function addVideoContainerListeners(video) {
-
-        video.container.addEventListener('mouseenter', video.showFullProgressBar);
-        video.container.addEventListener('mouseleave', video.showTinyProgressBar);
-        video.container.addEventListener('mousemove', function() {
-
-            video.showFullProgressBar();
-            clearInterval(video.mouseTimer);
-            video.mouseTimer = setInterval(video.showTinyProgressBar, 3000);
-        });
-    }
-
-    /**
-     * Setup HTML video event listeners.
-     *
-     * @param {Video} video - Parent Video.
-     */
-    function addVideoElementListeners(video) {
-
-        video.video.addEventListener('click', function() {
-
-            // TODO: visual indicators
-
-            video.toggle();
-        });
-
-        video.video.addEventListener('durationchange', function() {
-
-            video.data.duration = this.duration;
-            video.setDurationTime(this.duration);
-            video.deferredOverlayMarkers.forEach(video.addOverlayMarker);
-        });
-
-        video.video.addEventListener('loadedmetadata', function() {
-
-            video.data.width = this.videoWidth;
-            video.data.height = this.videoHeight;
-        });
-
-        video.video.addEventListener('progress', function() {
-
-            // TODO: explain this
-
-            video.progressTimer = setInterval(function () {
-
-                var position = video.video.currentTime;
-                var ranges = video.video.buffered;
-                var bound = 0;
-
-                for (var i = 0; i < ranges.length; i++) {
-
-                    var start = ranges.start(i);
-                    var end = ranges.end(i);
-
-                    if (start <= position && position <= end && end > bound) {
-                        bound = end;
-                    }
-                }
-
-                video.setProgressLoadPosition(bound);
-
-                if (video.data.duration && video.data.duration <= bound) {
-                    clearInterval(video.progressTimer);
-                }
-            }, 100);
-        });
-
-        video.video.addEventListener('timeupdate', function() {
-
-            video.setProgressPlayPosition(this.currentTime);
-            video.setCurrentTime(this.currentTime);
-        });
-
-        video.video.addEventListener('ended', function() {
-
-            video.pause();
-        });
-
-        video.video.addEventListener('volumechange', function(event) {
-
-            video.setVolumeSlider(video.getVolume());
-        });
     }
 
     /**
