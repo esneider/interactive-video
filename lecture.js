@@ -550,7 +550,9 @@ var Lecture = (function() {
 
         volume.setAttribute('tabindex', 0);
 
-        video.setVolume = function(value) {
+        addVideoVolumeListeners(video, volume, outer);
+
+        video.setVolumeSlider = function(value) {
 
             value = clamp(0, value, 1);
 
@@ -569,28 +571,9 @@ var Lecture = (function() {
             if (value > 0.6) {
                 speaker.classList.add('controls-volume-high');
             }
-
-            video.video.volume = value;
         };
 
-        video.getVolume = function() {
-
-            return video.video.volume;
-        };
-
-        var current = video.getVolume();
-        var last = current == 0 ? 1 : 0;
-
-        video.toggleVolume = function() {
-
-            var current = video.getVolume();
-            video.setVolume(last);
-            last = current;
-        };
-
-        video.setVolume(current);
-
-        addVideoVolumeListeners(video, volume, outer);
+        video.setVolumeSlider(video.getVolume());
     }
 
     /**
@@ -602,12 +585,20 @@ var Lecture = (function() {
      */
     function addVideoVolumeListeners(video, volume, slider) {
 
+        var clickSpeaker = false;
+
         volume.addEventListener('mousedown', function(event) {
 
             /* Avoid gaining focus on mouse down. */
             event.preventDefault();
 
-            if (getRelativeMousePosition(event.pageX, 0, slider).x == 0) {
+            var rel = getRelativeMousePosition(event.pageX, 0, slider);
+            clickSpeaker = rel.x === 0;
+        });
+
+        volume.addEventListener('mouseup', function(event) {
+
+            if (clickSpeaker) {
                 video.toggleVolume();
             }
         });
@@ -638,12 +629,24 @@ var Lecture = (function() {
             }
         });
 
-        function mouseOp(event) {
+        function mouseDown(event) {
+
+            volume.classList.add('controls-volume-hover');
+            mouseMove(event);
+        }
+
+        function mouseMove(event) {
 
             video.setVolume(getRelativeMousePosition(event.pageX, 0, slider).x);
         }
 
-        slider.addEventListener('mousedown', mouseDownHandler(mouseOp, mouseOp, mouseOp));
+        function mouseUp(event) {
+
+            volume.classList.remove('controls-volume-hover');
+            mouseMove(event);
+        }
+
+        slider.addEventListener('mousedown', mouseDownHandler(mouseDown, mouseMove, mouseUp));
     }
 
     /**
@@ -755,6 +758,11 @@ var Lecture = (function() {
         video.video.addEventListener('ended', function() {
 
             video.pause();
+        });
+
+        video.video.addEventListener('volumechange', function(event) {
+
+            video.setVolumeSlider(video.getVolume());
         });
     }
 
@@ -947,6 +955,45 @@ var Lecture = (function() {
         this.transitions.addCue(cue);
 
         return this;
+    };
+
+    /**
+     * Set the video volume.
+     *
+     * @memberof Video
+     *
+     * @param {number} value - New volume value, in [0, 1].
+     */
+    Video.prototype.setVolume = function(value) {
+
+        this.video.volume = clamp(0, value, 1);
+        this.video.muted = false;
+    };
+
+    /**
+     * Get the video volume.
+     *
+     * @memberof Video
+     *
+     * @return {number} Volume value, in [0, 1].
+     */
+    Video.prototype.getVolume = function() {
+
+        return this.video.muted ? 0 : this.video.volume;
+    };
+
+    /**
+     * Toggle the video between mute and unmute.
+     *
+     * @memberof Video
+     */
+    Video.prototype.toggleVolume = function() {
+
+        this.video.muted = !this.video.muted;
+
+        if (!this.video.muted && this.video.volume === 0) {
+            this.video.volume = 0.05;
+        }
     };
 
     /**
