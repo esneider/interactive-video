@@ -403,9 +403,10 @@ var Lecture = (function() {
      */
     function createVideoControls(video) {
 
-        var container = createElement('div', 'controls-container', video.container);
+        var surround  = createElement('div', video.container);
+        var container = createElement('div', 'controls-container', surround);
 
-        createVideoProgressBar(video, container);
+        createVideoProgressBar(video, surround, container);
 
         var controls = createElement('div', 'controls-buttons', container);
 
@@ -418,15 +419,20 @@ var Lecture = (function() {
         if (video.options.controls === 'none') {
             container.style.display = 'none';
         }
+
+        if (video.options.controls === 'hide') {
+            surround.classList.add('controls-container-surround');
+        }
     }
 
     /**
      * Create and setup the HTML elements for the video controls progress bar.
      *
      * @param {Video} video - Parent Video.
+     * @param {object} surround - Controls surround HTML element.
      * @param {object} controls - Parent controls HTML element.
      */
-    function createVideoProgressBar(video, controls) {
+    function createVideoProgressBar(video, surround, controls) {
 
         var padding  = createElement('div', 'controls-progress-padding', controls);
         var progress = createElement('div', 'controls-progress',         controls);
@@ -457,16 +463,21 @@ var Lecture = (function() {
         video.internal.showFullProgressBar = function() {
 
             if (!video.lecture.showingOverlay()) {
-                bullet.classList.remove('controls-progress-bullet-tiny');
+                  bullet.classList.remove('controls-progress-bullet-tiny');
                 progress.classList.remove('controls-progress-tiny');
+                surround.classList.remove('controls-container-surround-hidden');
             }
         };
 
         video.internal.showTinyProgressBar = function() {
 
             if (!video.video.paused) {
-                bullet.classList.add('controls-progress-bullet-tiny');
+                  bullet.classList.add('controls-progress-bullet-tiny');
                 progress.classList.add('controls-progress-tiny');
+
+                if (video.options.controls === 'hide') {
+                    surround.classList.add('controls-container-surround-hidden');
+                }
             }
         };
 
@@ -1352,7 +1363,7 @@ var Lecture = (function() {
      */
     Lecture.prototype.showingOverlay = function() {
 
-        return this.currentOverlays.length >
+        return Object.keys(this.currentOverlays).length >
                this.currentVideo.transitions.activeCues.length;
     };
 
