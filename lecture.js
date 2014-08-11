@@ -414,6 +414,10 @@ var Lecture = (function() {
         createVideoTimeIndicator(video, controls);
 
         // TODO: fullscreen, captions, etc.
+
+        if (video.options.controls === 'none') {
+            container.style.display = 'none';
+        }
     }
 
     /**
@@ -432,6 +436,10 @@ var Lecture = (function() {
         var bullet   = createElement('div', 'controls-progress-bullet',  played);
 
         video.internal.addOverlayMarker = function(position) {
+
+            if (!video.options.markers) {
+                return;
+            }
 
             if (!video.data.duration) {
                 video.internal.deferredOverlayMarkers.push(position);
