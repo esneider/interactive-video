@@ -413,8 +413,10 @@ var Lecture = (function() {
         createVideoPlayPauseButton(video, controls);
         createVideoVolumeButton(video, controls);
         createVideoTimeIndicator(video, controls);
+        createVideoFullScreenButton(video, controls);
 
-        // TODO: fullscreen, captions, etc.
+        // TODO: captions, etc.
+
 
         if (video.options.controls === 'none') {
             container.style.display = 'none';
@@ -752,6 +754,56 @@ var Lecture = (function() {
             video.data.duration = clamp(0, time, Infinity);
             duration.firstChild.nodeValue = formatSeconds(video.data.duration);
         };
+    }
+
+    /**
+     * Create and setup the video fullscreen button.
+     *
+     * @param {Video} video - Parent Video.
+     * @param {object} controls - Parent controls HTML element.
+     */
+    function createVideoFullScreenButton(video, controls) {
+
+        var button = createElement('div', 'controls-fullscreen', controls);
+        var symbol = createElement('div', 'controls-fullscreen-symbol', button);
+
+        button.setAttribute('tabindex', 0);
+
+        video.internal.toggleFullScreen = function() {
+
+            var methods = [
+                      'requestFullScreen',
+                    'msRequestFullScreen',
+                   'mozRequestFullScreen',
+                'webkitRequestFullScreen',
+            ];
+
+            for (var i = 0; i < methods.length; i++) {
+                if (video.lecture.container[methods[i]]) {
+                    video.lecture.container[methods[i]]();
+                    video.lecture.container.classList.add('lecture-container-fullscreen');
+                    break;
+                }
+            }
+        };
+
+        button.addEventListener('mousedown', function(event) {
+
+            /* Avoid gaining focus on mouse down. */
+            event.preventDefault();
+        });
+
+        button.addEventListener('click', video.internal.toggleFullScreen);
+
+        button.addEventListener('keydown', function(event) {
+
+            var code = event.charCode || event.keyCode || event.which;
+
+            /* Toggle on enter or space. */
+            if (code == 13 || code == 32) {
+                video.internal.toggleFullScreen();
+            }
+        });
     }
 
     /**
