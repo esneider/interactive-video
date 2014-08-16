@@ -200,23 +200,23 @@
 
 .controls-playpause-button:hover::after,
 .controls-playpause-button:focus::after {
-    border-left-color: #838383;
-    border-right-color: #838383;
+    border-left-color: #959595;
+    border-right-color: #959595;
 }
 
 .controls-play-button::after {
     width: 0;
     height: 0;
     border-top: 7px solid transparent;
-    border-left: 14px solid #626262;
+    border-left: 14px solid #757575;
     border-bottom: 7px solid transparent;
 }
 
 .controls-pause-button::after {
     width: 3px;
     height: 14px;
-    border-left: 5px solid #626262;
-    border-right: 5px solid #626262;
+    border-left: 5px solid #757575;
+    border-right: 5px solid #757575;
 }
 
 .controls-volume {
@@ -238,7 +238,7 @@
     width: 4px;
     left: 7px;
     top: 10px;
-    border-top: 6px solid #626262;
+    border-top: 6px solid #757575;
     -webkit-transition: border-color 0.1s linear;
        -moz-transition: border-color 0.1s linear;
         -ms-transition: border-color 0.1s linear;
@@ -249,7 +249,7 @@
 .controls-volume:hover::before,
 .controls-volume-hover::before,
 .controls-volume:focus::before {
-    border-color: #838383;
+    border-color: #959595;
 }
 
 .controls-volume::after {
@@ -258,7 +258,7 @@
     left: 0;
     top: 6px;
     border: 7px solid transparent;
-    border-right: 10px solid #626262;
+    border-right: 10px solid #757575;
     -webkit-transition: border-color 0.1s linear;
        -moz-transition: border-color 0.1s linear;
         -ms-transition: border-color 0.1s linear;
@@ -269,7 +269,7 @@
 .controls-volume:hover::after,
 .controls-volume-hover::after,
 .controls-volume:focus::after {
-    border-right-color: #838383;
+    border-right-color: #959595;
 }
 
 .controls-volume-speaker {
@@ -285,7 +285,7 @@
     height: 3px;
     left: 18px;
     top: 11px;
-    border: 1px solid #626262;
+    border: 1px solid #757575;
     border-width: 1px 1px 0 0;
     -webkit-border-radius: 0 3px 0 0;
        -moz-border-radius: 0 3px 0 0;
@@ -309,7 +309,7 @@
     height: 7px;
     left: 18px;
     top: 9px;
-    border: 1px solid #626262;
+    border: 1px solid #757575;
     border-width: 1px 1px 0 0;
     -webkit-border-radius: 0 7px 0 0;
        -moz-border-radius: 0 7px 0 0;
@@ -332,7 +332,7 @@
     width: 8px;
     left: 19px;
     top: 12px;
-    border-top: 2px solid #626262;
+    border-top: 2px solid #757575;
     -webkit-transition: border-color 0.1s linear;
        -moz-transition: border-color 0.1s linear;
         -ms-transition: border-color 0.1s linear;
@@ -348,7 +348,7 @@
 .controls-volume:hover > .controls-volume-speaker::before,
 .controls-volume-hover > .controls-volume-speaker::before,
 .controls-volume:focus > .controls-volume-speaker::before {
-    border-color: #838383;
+    border-color: #959595;
 }
 
 .controls-volume-mute::after {
@@ -357,7 +357,7 @@
     width: 8px;
     left: 19px;
     top: 12px;
-    border-top: 2px solid #626262;
+    border-top: 2px solid #757575;
     -webkit-transition: border-color 0.1s linear;
        -moz-transition: border-color 0.1s linear;
         -ms-transition: border-color 0.1s linear;
@@ -373,7 +373,7 @@
 .controls-volume:hover > .controls-volume-speaker::after,
 .controls-volume-hover > .controls-volume-speaker::after,
 .controls-volume:focus > .controls-volume-speaker::after {
-    border-color: #838383;
+    border-color: #959595;
 }
 
 .controls-volume-slider-outer {
@@ -466,14 +466,14 @@
 
 .controls-fullscreen:hover > .controls-fullscreen-symbol,
 .controls-fullscreen:focus > .controls-fullscreen-symbol {
-    border-color: #838383;
+    border-color: #959595;
 }
 
 .controls-fullscreen-symbol {
     height: 11px;
     width: 17px;
     margin: 6px 17px;
-    border: solid 2px #626262;
+    border: solid 2px #757575;
 }
 
 .controls-fullscreen-symbol::before {
